@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0F2A43">
+<title>Hướng dẫn sử dụng – Khảo sát CS&amp;MX</title>
+<style>
+  :root{
+    --ink:#0F2A43; --ink-2:#1B3D5C; --line:#E2E8F0; --bg:#EEF2F6;
+    --card:#FFFFFF; --muted:#64748B; --text:#0F2235;
+    --primary:#1565C0; --teal:#0E7490; --green:#1E8E3E; --green-bg:#E6F4EA;
+    --amber:#B45309; --amber-bg:#FCEFDC; --red:#C62828;
+    --shadow:0 1px 3px rgba(15,42,67,.10),0 1px 2px rgba(15,42,67,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:16px;line-height:1.55;-webkit-text-size-adjust:100%}
+  .dbar{position:sticky;top:0;z-index:50;background:var(--ink);color:#fff;
+    padding:calc(env(safe-area-inset-top) + 11px) 12px 11px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
+  .iconbtn{background:rgba(255,255,255,.14);border:0;color:#fff;width:38px;height:38px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;text-decoration:none}
+  .dbar .t{flex:1;min-width:0}
+  .dbar .t b{display:block;font-size:15px;font-weight:700}
+  .dbar .t span{font-size:11.5px;color:#A9C2DA}
+  .wrap{padding:8px 12px 60px;max-width:760px;margin:0 auto}
+  .intro{background:linear-gradient(135deg,#1565C0,#0E7490);color:#fff;border-radius:14px;
+    padding:16px 16px;margin:12px 0;box-shadow:var(--shadow)}
+  .intro h2{margin:0 0 6px;font-size:17px}
+  .intro p{margin:0;font-size:13.5px;color:#E3EEF8}
+  .sec{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .sec h3{margin:0 0 10px;font-size:15.5px;color:var(--ink);display:flex;align-items:center;gap:9px}
+  .num{flex:none;width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+  .sec p{margin:0 0 8px;font-size:14px;color:var(--text)}
+  .sec ul{margin:0 0 4px;padding-left:20px}
+  .sec li{font-size:14px;margin-bottom:6px}
+  .sec li b{color:var(--ink-2)}
+  .tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:7px;margin:0 1px}
+  .tag.gps{background:var(--green-bg);color:var(--green)}
+  .tag.pend{background:var(--amber-bg);color:var(--amber)}
+  .tag.hi{background:#FCE8E8;color:var(--red)}
+  .note{background:var(--amber-bg);border:1px solid #F2D9B0;border-radius:11px;padding:11px 13px;margin-top:10px;
+    font-size:13px;color:#7A4A0A}
+  .note b{color:#7A4A0A}
+  .tip{background:var(--green-bg);border:1px solid #BFE3CB;border-radius:11px;padding:11px 13px;margin-top:10px;
+    font-size:13px;color:#1B5E20}
+  .step{display:flex;gap:10px;align-items:flex-start;margin-bottom:9px}
+  .step .b{flex:none;width:22px;height:22px;border-radius:50%;background:var(--bg);color:var(--ink-2);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;margin-top:1px}
+  .step .x{flex:1;font-size:14px}
+  .foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 8px 4px}
+  a.cta{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--primary);color:#fff;
+    text-decoration:none;border-radius:12px;padding:13px;font-weight:700;font-size:14.5px;margin-top:6px;box-shadow:var(--shadow)}
+</style>
+</head>
+<body>
+
+<header class="dbar">
+  <a class="iconbtn" href="index.html" aria-label="Quay lại">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+  <div class="t"><b>Hướng dẫn sử dụng</b><span>Khảo sát chiếu sáng &amp; mảng xanh · LAVIPCO</span></div>
+</header>
+
+<div class="wrap">
+
+  <div class="intro">
+    <h2>Ứng dụng khảo sát hiện trường</h2>
+    <p>Công cụ ghi nhận hiện trạng chiếu sáng &amp; mảng xanh tại 107 vị trí trụ dừng / nhà chờ xe buýt. Dữ liệu lưu ngay trên thiết bị, có thể dùng <b>không cần mạng</b> và đồng bộ lên Google Sheets khi có internet.</p>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">1</span> Cài đặt vào màn hình chính</h3>
+    <p>Để dùng như một app riêng (mở nhanh, chạy offline):</p>
+    <ul>
+      <li><b>iPhone (Safari):</b> bấm nút Chia sẻ → <b>“Thêm vào MH chính”</b>.</li>
+      <li><b>Android (Chrome):</b> menu ⋮ → <b>“Thêm vào màn hình chính”</b>.</li>
+    </ul>
+    <div class="tip">Sau khi cài, mở app từ biểu tượng ngoài màn hình để có giao diện toàn màn hình.</div>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">2</span> Tìm &amp; lọc vị trí</h3>
+    <ul>
+      <li><b>Ô tìm kiếm:</b> gõ tên điểm, tên đường, mã điểm dừng hoặc số nhà.</li>
+      <li><b>Chip lọc trạng thái:</b> <span class="tag pend">Chưa khảo sát</span> / Đã khảo sát / Tất cả.</li>
+      <li><b>Chip lọc địa bàn:</b> chọn theo Quận / khu vực.</li>
+      <li>Thanh tiến độ trên cùng hiển thị số điểm <b>đã khảo sát / tổng số</b>.</li>
+    </ul>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">3</span> Khảo sát một điểm</h3>
+    <p>Bấm vào một thẻ vị trí trong danh sách để mở màn hình khảo sát, rồi nhập:</p>
+    <div class="step"><span class="b">1</span><span class="x"><b>Tọa độ GPS:</b> bấm <b>Định vị</b> để lấy tự động (cần bật GPS &amp; cấp quyền), hoặc nhập tay vĩ độ / kinh độ. Bấm <b>Mở vị trí trên Google Maps</b> để kiểm tra.</span></div>
+    <div class="step"><span class="b">2</span><span class="x"><b>Hiện trạng chiếu sáng:</b> chọn Đầy đủ / Thiếu-Yếu / Hư hỏng / Không có.</span></div>
+    <div class="step"><span class="b">3</span><span class="x"><b>Hiện trạng mảng xanh:</b> chọn Có đầy đủ / Có-cần bổ sung / Không có.</span></div>
+    <div class="step"><span class="b">4</span><span class="x"><b>Khoảng cách đến nguồn điện</b> gần nhất (mét).</span></div>
+    <div class="step"><span class="b">5</span><span class="x"><b>Đề xuất bổ sung</b> chiếu sáng &amp; mảng xanh (loại đèn/cây, số lượng).</span></div>
+    <div class="step"><span class="b">6</span><span class="x"><b>Mức độ ưu tiên:</b> <span class="tag hi">Cao</span> / Trung bình / Thấp.</span></div>
+    <div class="step"><span class="b">7</span><span class="x"><b>Ghi chú</b> hiện trạng, vướng mắc, kiến nghị.</span></div>
+    <div class="step"><span class="b">8</span><span class="x"><b>Hình ảnh hiện trường:</b> chụp hoặc chọn ảnh (ảnh được nén tự động để tiết kiệm bộ nhớ).</span></div>
+    <div class="step"><span class="b">9</span><span class="x"><b>Người khảo sát:</b> nhập họ tên (sẽ được nhớ cho các điểm sau).</span></div>
+    <p style="margin-top:6px">Cuối cùng bấm <b>“Lưu khảo sát điểm này”</b>. Thẻ sẽ chuyển sang trạng thái <span class="tag gps">Đã khảo sát</span>.</p>
+    <div class="note"><b>Lưu ý:</b> phải bấm <b>Lưu</b> thì dữ liệu (kể cả ảnh &amp; tọa độ) mới được ghi lại. Nút thùng rác để xóa dữ liệu khảo sát của riêng điểm đang mở.</div>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">4</span> Xuất dữ liệu &amp; đồng bộ</h3>
+    <p>Bấm nút <b>“Xuất / Đồng bộ”</b> (góc phải dưới) để mở bảng tùy chọn:</p>
+    <ul>
+      <li><b>Tải file CSV:</b> xuất toàn bộ ra file mở được bằng Excel.</li>
+      <li><b>Đồng bộ lên Google Sheets:</b> gửi các điểm đã khảo sát lên bảng tính (URL đã được cài sẵn).</li>
+      <li><b>Nhập lại dữ liệu từ CSV:</b> khôi phục / gộp dữ liệu từ file CSV đã xuất trước đó.</li>
+      <li><b>Xóa toàn bộ dữ liệu:</b> xóa sạch dữ liệu khảo sát trên thiết bị (cẩn trọng!).</li>
+    </ul>
+    <div class="note"><b>Quan trọng:</b> dữ liệu chỉ lưu trên thiết bị này. Hãy <b>Xuất CSV hoặc Đồng bộ thường xuyên</b> để tránh mất dữ liệu khi xóa lịch sử trình duyệt hoặc đổi máy.</div>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">5</span> Mẹo dùng hiệu quả</h3>
+    <ul>
+      <li>Lấy GPS <b>ngay tại hiện trường</b> để tọa độ chính xác.</li>
+      <li>Chụp ảnh rõ kết cấu trụ/nhà chờ và khu vực xung quanh.</li>
+      <li>Lọc theo <b>“Chưa khảo sát”</b> để biết còn điểm nào cần đi.</li>
+      <li>Nếu báo <b>“Bộ nhớ đầy”</b>: hãy Xuất CSV / Đồng bộ rồi cân nhắc giảm ảnh.</li>
+    </ul>
+  </div>
+
+  <a class="cta" href="index.html">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Bắt đầu khảo sát
+  </a>
+
+  <div class="foot">LAVIPCO · Khảo sát chiếu sáng &amp; mảng xanh</div>
+</div>
+
+</body>
+</html>
