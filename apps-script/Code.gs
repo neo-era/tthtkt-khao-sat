@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  LAVIPCO – BACKEND GOOGLE APPS SCRIPT
+ *  CHIẾU SÁNG KHU VỰC TRUNG TÂM – BACKEND GOOGLE APPS SCRIPT
  *  Web app khảo sát bổ sung chiếu sáng công cộng (Phụ lục 107 vị trí)
  *  CV số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026
  * ----------------------------------------------------------------------------
@@ -24,16 +24,16 @@
 // Tên sheet chứa dữ liệu khảo sát. Đổi nếu muốn.
 var SHEET_NAME = 'KhaoSat';
 
-// 16 cột app gửi lên + 1 cột thời gian server nhận = 17 cột.
+// 19 cột app gửi lên + 1 cột thời gian server nhận = 20 cột.
 var HEADERS = [
   'STT', 'Mã điểm dừng', 'Tên điểm dừng', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Loại kết cấu', 'Vĩ độ', 'Kinh độ',
   'HT chiếu sáng', 'Nguồn điện (m)',
-  'ĐX chiếu sáng', 'Ưu tiên', 'Ghi chú khảo sát',
+  'ĐX đèn', 'ĐX cáp', 'ĐX trụ', 'ĐX phụ kiện', 'Ưu tiên', 'Ghi chú khảo sát',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 17
-var APP_COLS = 16;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 20
+var APP_COLS = 19;                 // số cột app gửi
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -117,7 +117,7 @@ function doGet(e) {
 
   return jsonOut_({
     ok: true,
-    service: 'LAVIPCO Khảo sát chiếu sáng',
+    service: 'Chiếu sáng khu vực Trung Tâm – Khảo sát chiếu sáng',
     sheet: SHEET_NAME,
     total: Math.max(0, sheet.getLastRow() - 1),
     time: nowStr_()
@@ -146,7 +146,7 @@ function setupSheet() {
   sheet.setRowHeight(1, 40);
 
   // Độ rộng cột (đơn vị pixel)
-  var widths = [45, 90, 200, 130, 130, 110, 110, 95, 95, 95, 80, 170, 80, 200, 120, 130, 130];
+  var widths = [45, 90, 200, 130, 130, 110, 110, 95, 95, 95, 80, 140, 140, 140, 140, 80, 200, 120, 130, 130];
   widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
 
   // Định dạng vùng dữ liệu
@@ -163,7 +163,7 @@ function setupSheet() {
          .applyRowBanding(SpreadsheetApp.BandingTheme.LIGHT_GREY, true, false);
   } catch (bandErr) { /* bỏ qua nếu môi trường không hỗ trợ */ }
 
-  SpreadsheetApp.getActive().toast('Đã khởi tạo bảng "' + SHEET_NAME + '" với ' + NCOLS + ' cột.', 'LAVIPCO', 5);
+  SpreadsheetApp.getActive().toast('Đã khởi tạo bảng "' + SHEET_NAME + '" với ' + NCOLS + ' cột.', 'Chiếu sáng khu vực Trung Tâm', 5);
 }
 
 /**
@@ -173,7 +173,7 @@ function clearData() {
   var sheet = getSheet_();
   var last = sheet.getLastRow();
   if (last > 1) sheet.getRange(2, 1, last - 1, NCOLS).clearContent();
-  SpreadsheetApp.getActive().toast('Đã xóa dữ liệu, giữ lại tiêu đề.', 'LAVIPCO', 4);
+  SpreadsheetApp.getActive().toast('Đã xóa dữ liệu, giữ lại tiêu đề.', 'Chiếu sáng khu vực Trung Tâm', 4);
 }
 
 /* ------------------------------ HÀM PHỤ TRỢ ------------------------------ */

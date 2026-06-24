@@ -5,7 +5,7 @@ File ngữ cảnh cho Claude (Claude Code / Cowork) khi làm việc với repo n
 
 ## Dự án là gì
 
-Web app khảo sát hiện trường (mobile-first) để rà soát, đề xuất **bổ sung chiếu sáng công cộng và mảng xanh** tại **107 vị trí** trụ dừng / nhà chờ xe buýt khu vực trung tâm TP.HCM. Của **Công ty TNHH Kỹ Nghệ Lâm Việt Phát (LAVIPCO)**.
+Web app khảo sát hiện trường (mobile-first) để rà soát, đề xuất **bổ sung chiếu sáng công cộng** tại **107 vị trí** trụ dừng / nhà chờ xe buýt khu vực trung tâm TP.HCM. Thuộc **Chiếu sáng khu vực Trung Tâm**.
 
 Căn cứ: CV số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026 + Phụ lục 107 vị trí (Trung tâm Quản lý Giao thông công cộng – Sở Xây dựng TP.HCM).
 
@@ -25,26 +25,30 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **18 cột** theo `rowArray()`; backend thêm cột 19 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI cả `rowArray`/`HEADERS` trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS` trong `Code.gs`.
+- **Số cột phải khớp**: app gửi đúng **19 cột** theo `rowArray()`; backend thêm cột 20 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI cả `rowArray`/`HEADERS` trong `index.html`, `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`, đoạn mẫu `doPost` trong phần trợ giúp, và `importCsv` (chỉ số cột).
 
 ## Schema dữ liệu
 
 ### Bản ghi khảo sát (object trong localStorage `lavipco_ks_data_v1`)
 Key = STT (số). Value:
 ```js
-{ lat, lng, acc, gpsAt, light, green, power,
-  propLight, propGreen, prio, note, by, photo, at }
+{ lat, lng, acc, gpsAt, light, power,
+  den, cap, tru, phukien, prio, note, by, photo, at }
 ```
 - `light` ∈ {Đầy đủ, Thiếu/Yếu, Hư hỏng, Không có}
-- `green` ∈ {Có đầy đủ, Có - cần bổ sung, Không có}
+- `den`, `cap`, `tru`, `phukien` = đề xuất bổ sung chiếu sáng tách 4 mục: đèn / cáp / trụ / phụ kiện (text tự do).
 - `prio`  ∈ {Cao, Trung bình, Thấp}
-- `photo` = dataURL JPEG đã nén (max 720px, q0.55). Có thể rỗng.
-- Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: light, green, lat, note, propLight.
+- `photo` = dataURL JPEG đã nén (max 720px, q0.55). Có thể rỗng. Khi chụp/chọn ảnh được tự tải 1 bản về máy.
+- Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: light, lat, note, den, cap, tru, phukien.
 
-### Thứ tự 18 cột gửi lên (hàm `rowArray` trong index.html)
-`STT, Mã, Tên, Đường, Số nhà, Phường, Loại, Vĩ độ, Kinh độ, HT chiếu sáng, HT mảng xanh, Nguồn điện(m), ĐX chiếu sáng, ĐX mảng xanh, Ưu tiên, Ghi chú, Người KS, Thời gian lưu`
+### Thứ tự 19 cột gửi lên (hàm `rowArray` trong index.html)
+`STT, Mã, Tên, Đường, Số nhà, Phường, Loại, Vĩ độ, Kinh độ, HT chiếu sáng, Nguồn điện(m), ĐX đèn, ĐX cáp, ĐX trụ, ĐX phụ kiện, Ưu tiên, Ghi chú, Người KS, Thời gian lưu`
 
-Cột 19 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
+Cột 20 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
+
+### Đồng bộ Google Sheets
+- URL Apps Script được nhúng sẵn (`DEFAULT_URL` trong index.html); ô nhập URL pre-fill bằng URL này.
+- Mỗi lần bấm **Lưu khảo sát điểm này** → ngoài lưu localStorage còn POST riêng điểm đó lên Sheets (nếu `navigator.onLine`). Offline thì lưu máy, đồng bộ sau ở mục Xuất/Đồng bộ.
 
 ### Các key localStorage
 - `lavipco_ks_data_v1` — toàn bộ bản ghi khảo sát.
@@ -65,11 +69,11 @@ Dữ liệu 107 vị trí là nguồn duy nhất, được giữ trong các scri
 
 Nếu cần đổi danh mục vị trí: sửa mảng `data` (giống nhau ở `build_form.py` và `build_app.py`) rồi chạy lại cả hai. **Đừng sửa tay JSON trong `index.html`** — dễ sai dấu/escape.
 
-## Quy ước của LAVIPCO (áp dụng cho mọi file xuất)
+## Quy ước của Chiếu sáng khu vực Trung Tâm (áp dụng cho mọi file xuất)
 
 - Đặt tên file: tăng số phiên bản mỗi lần (v1.0, v1.1…); ghi rõ đuôi định dạng; dùng **đuôi kép** (vd `...v1.1.xlsx.xlsx`) để đuôi còn hiển thị sau khi tải.
-- Tài liệu pháp lý/chính thức của LAVIPCO: font **Times New Roman** (4 file TTF do anh Lâm cung cấp). Biểu mẫu Excel đã dùng Times New Roman.
-- Thông tin pháp nhân (khi cần in lên tài liệu): CÔNG TY TNHH KỸ NGHỆ LÂM VIỆT PHÁT; MST 1101748509; Đại diện: Bà Nguyễn Kim Thúy Quỳnh – Giám đốc.
+- Tài liệu pháp lý/chính thức: font **Times New Roman**. Biểu mẫu Excel đã dùng Times New Roman.
+- Thông tin đơn vị (khi cần in lên tài liệu): **Chiếu sáng khu vực Trung Tâm**.
 
 ## Triển khai
 
