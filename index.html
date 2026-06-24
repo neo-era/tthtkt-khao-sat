@@ -249,6 +249,10 @@
         </label>
         <input id="fPhoto" type="file" accept="image/*" capture="environment" style="display:none">
       </div>
+      <button class="btn btn-map" id="btnSavePhoto" style="display:none;margin-top:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M12 15l-4-4M12 15l4-4M5 19h14" stroke="#1B3D5C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Lưu ảnh về máy
+      </button>
     </div>
 
     <div class="field">
@@ -430,8 +434,8 @@ function openDetail(stt){
   document.getElementById("fNote").value=rc.note||"";
   document.getElementById("fBy").value=rc.by||localStorage.getItem("lavipco_ks_by")||"";
   const th=document.getElementById("fThumb");
-  if(rc.photo){ th.src=rc.photo; th.style.display="block"; document.getElementById("lblPhoto").querySelector? null:null; }
-  else { th.style.display="none"; th.src=""; }
+  if(rc.photo){ th.src=rc.photo; th.style.display="block"; document.getElementById("btnSavePhoto").style.display="flex"; }
+  else { th.style.display="none"; th.src=""; document.getElementById("btnSavePhoto").style.display="none"; }
   document.getElementById("listView").style.display="none";
   document.getElementById("detailView").classList.add("show");
   window.scrollTo(0,0);
@@ -502,10 +506,29 @@ function onPhoto(e){
     cv.getContext("2d").drawImage(img,0,0,w,h);
     const dataUrl=cv.toDataURL("image/jpeg",0.55);
     const th=document.getElementById("fThumb"); th.src=dataUrl; th.style.display="block";
+    document.getElementById("btnSavePhoto").style.display="flex";
     if(!store[current])store[current]={}; store[current].photo=dataUrl;
-    toast("Đã đính kèm ảnh (sẽ lưu khi bấm Lưu).");
+    savePhotoToDevice(dataUrl);
+    toast("Đã đính kèm & lưu ảnh về máy.");
   }; img.src=rd.result; };
   rd.readAsDataURL(f);
+}
+/* Lưu ảnh về bộ nhớ máy (Tải về / Thư viện ảnh) */
+function photoName(){
+  const r=RAW.find(x=>x.stt===current)||{};
+  return ("KS_"+(r.ma||current)+"_"+stamp()+".jpg").replace(/\s+/g,"");
+}
+function savePhotoToDevice(dataUrl){
+  const photo=dataUrl||(store[current]&&store[current].photo)||rec(current).photo;
+  if(!photo){ toast("Chưa có ảnh để lưu."); return; }
+  const name=photoName();
+  fetch(photo).then(b=>b.blob()).then(blob=>{
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  }).catch(()=>{
+    const a=document.createElement("a"); a.href=photo; a.download=name; a.click();
+  });
 }
 
 /* ---------- EXPORT / SYNC ---------- */
@@ -591,6 +614,7 @@ document.getElementById("btnSave").onclick=saveDetail;
 document.getElementById("btnGps").onclick=getGps;
 document.getElementById("btnMap").onclick=openMap;
 document.getElementById("fPhoto").addEventListener("change",onPhoto);
+document.getElementById("btnSavePhoto").onclick=()=>savePhotoToDevice();
 document.getElementById("btnReset").onclick=()=>{ if(confirm("Xóa dữ liệu khảo sát của điểm này?")){ delete store[current]; saveStore(); toast("Đã xóa điểm "+current); closeDetail(); } };
 document.getElementById("fabExport").onclick=openSheet;
 document.getElementById("scrim").onclick=closeSheet;
