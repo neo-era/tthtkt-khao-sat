@@ -54,6 +54,10 @@ Cột 20 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
 - `lavipco_ks_data_v1` — toàn bộ bản ghi khảo sát.
 - `lavipco_ks_url_v1`  — URL Apps Script đã lưu.
 - `lavipco_ks_by`      — tên người khảo sát gần nhất (điền sẵn).
+- `lavipco_ks_raw_v1`  — bản sao danh mục `RAW` (107 vị trí) do `index.html` ghi mỗi lần mở; `baocao.html` đọc lại để dựng báo cáo mà không cần nhúng lại RAW.
+
+### Trang báo cáo (`baocao.html`)
+Trang in được độc lập, đọc `lavipco_ks_raw_v1` + `lavipco_ks_data_v1` từ localStorage (cùng origin), tự tính tổng quan / thống kê hiện trạng / tổng hợp đề xuất theo đèn-cáp-trụ-phụ kiện / bảng chi tiết theo địa bàn / phụ lục vị trí chưa khảo sát / kết luận. Bố cục theo CV 3471. Vào từ nút "Xuất báo cáo khảo sát" trong sheet Xuất/Đồng bộ. **Phải mở `index.html` trước ít nhất 1 lần** để có `lavipco_ks_raw_v1`.
 
 ### 107 vị trí gốc (nguồn dữ liệu chuẩn)
 Mảng `RAW` (JSON) nhúng trong `<script>` của `index.html`. Mỗi phần tử:

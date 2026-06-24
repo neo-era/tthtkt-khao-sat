@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo kết quả khảo sát chiếu sáng</title>
+<style>
+  :root{ --ink:#0F2A43; --line:#C9D4DF; --muted:#5A6B7B; --bg:#EEF2F6; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:#10202E;
+    font-family:"Times New Roman",Georgia,serif;font-size:13.5px;line-height:1.45}
+  /* ---- toolbar (không in) ---- */
+  .toolbar{position:sticky;top:0;z-index:10;background:var(--ink);color:#fff;
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:13px}
+  .toolbar a.back{color:#A9C2DA;text-decoration:none;font-weight:600}
+  .toolbar .sp{flex:1}
+  .toolbar input{border:1px solid #3a566f;border-radius:7px;padding:6px 9px;font-size:13px;
+    background:#16344c;color:#fff}
+  .toolbar button{background:#1565C0;color:#fff;border:0;border-radius:8px;padding:8px 16px;
+    font-weight:700;font-size:13.5px;cursor:pointer}
+  .toolbar label{color:#C7D7E7;font-size:12px}
+  /* ---- giấy A4 ---- */
+  .page{max-width:210mm;margin:14px auto;background:#fff;padding:18mm 16mm;
+    box-shadow:0 1px 6px rgba(0,0,0,.15)}
+  .head-org{font-size:12.5px;text-transform:uppercase;font-weight:700;text-align:center;letter-spacing:.3px}
+  .head-line{width:160px;height:1px;background:#10202E;margin:3px auto 10px}
+  h1{font-size:18px;text-align:center;margin:14px 0 4px;text-transform:uppercase;line-height:1.3}
+  .subttl{text-align:center;font-style:italic;color:var(--muted);margin:0 0 4px}
+  .cancu{text-align:center;font-style:italic;font-size:12.5px;color:#33485c;margin:8px 0 2px}
+  h2{font-size:14.5px;margin:20px 0 8px;color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:3px}
+  h3{font-size:13.5px;margin:14px 0 6px;color:var(--ink)}
+  table{width:100%;border-collapse:collapse;margin:8px 0 6px}
+  th,td{border:1px solid var(--line);padding:5px 7px;vertical-align:top;text-align:left}
+  th{background:#0F2A43;color:#fff;font-weight:700;text-align:center}
+  .num{text-align:center;white-space:nowrap}
+  .kpi{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+  .kpi .box{flex:1;min-width:120px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#F7FAFC}
+  .kpi .box b{display:block;font-size:22px;color:var(--ink);line-height:1.1}
+  .kpi .box span{font-size:12px;color:var(--muted)}
+  .grp{background:#E8EEF4;font-weight:700}
+  .detail{font-size:10px}
+  .detail th,.detail td{padding:3px 4px;word-break:break-word}
+  .pr-Cao{color:#C62828;font-weight:700}
+  .pr-TB{color:#B45309;font-weight:700}
+  .pr-Thap{color:#1E8E3E;font-weight:700}
+  textarea#ketluan{width:100%;min-height:90px;border:1px solid var(--line);border-radius:6px;
+    padding:8px;font-family:inherit;font-size:13.5px;resize:vertical}
+  .sign{display:flex;justify-content:space-between;margin-top:26px;gap:20px}
+  .sign div{text-align:center;flex:1}
+  .sign .role{font-weight:700}
+  .sign .hint{font-style:italic;color:var(--muted);font-size:12px}
+  .sign .space{height:64px}
+  .notice{max-width:600px;margin:60px auto;background:#fff;border-radius:12px;padding:28px;text-align:center;
+    font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .notice a{color:#1565C0;font-weight:700}
+  @media print{
+    .toolbar{display:none}
+    body{background:#fff;font-size:12px}
+    .page{box-shadow:none;margin:0;max-width:none;padding:12mm 10mm}
+    textarea#ketluan{border:0;padding:0;min-height:auto}
+    h2{page-break-after:avoid}
+    tr{page-break-inside:avoid}
+    @page{size:A4;margin:12mm}
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a class="back" href="index.html">← Về app</a>
+  <span class="sp"></span>
+  <label>Ngày lập</label>
+  <input id="tDate" size="12">
+  <label>Người lập</label>
+  <input id="tBy" placeholder="Họ tên" size="16">
+  <button onclick="window.print()">🖨 In / Lưu PDF</button>
+</div>
+
+<div id="root"></div>
+
+<script>
+const LIGHTS = ["Đầy đủ","Thiếu/Yếu","Hư hỏng","Không có"];
+const PRIOS  = ["Cao","Trung bình","Thấp"];
+
+function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
+function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v1"))||{}; }catch(e){ return {}; } }
+function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function rec(store,stt){ return store[stt]||{}; }
+function isDone(r){ return !!(r.light||r.lat||r.note||r.den||r.cap||r.tru||r.phukien); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function today(){ const d=new Date(); return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(); }
+
+const RAW = loadRaw();
+const STORE = loadStore();
+
+if(!RAW.length){
+  document.getElementById("root").innerHTML =
+    '<div class="notice"><h2 style="border:0">Chưa có dữ liệu danh mục</h2>'+
+    '<p>Hãy mở <a href="index.html">app khảo sát</a> trước (ít nhất một lần) để nạp danh mục 107 vị trí, rồi quay lại trang báo cáo này.</p></div>';
+} else {
+  render();
+}
+
+function render(){
+  const total = RAW.length;
+  const done = RAW.filter(r=>isDone(rec(STORE,r.stt)));
+  const pending = RAW.filter(r=>!isDone(rec(STORE,r.stt)));
+  const hasGps = done.filter(r=>rec(STORE,r.stt).lat).length;
+
+  // theo địa bàn
+  const dbMap = {};
+  RAW.forEach(r=>{
+    const k=r.diaban||"(Khác)";
+    if(!dbMap[k]) dbMap[k]={total:0,done:0};
+    dbMap[k].total++; if(isDone(rec(STORE,r.stt))) dbMap[k].done++;
+  });
+  const dbRows = Object.keys(dbMap).map(k=>{
+    const o=dbMap[k]; return '<tr><td>'+esc(k)+'</td><td class="num">'+o.total+'</td><td class="num">'+
+      o.done+'</td><td class="num">'+(o.total-o.done)+'</td><td class="num">'+
+      (o.total?Math.round(o.done/o.total*100):0)+'%</td></tr>';
+  }).join("");
+
+  // hiện trạng chiếu sáng
+  const lightCount = {}; LIGHTS.forEach(l=>lightCount[l]=0);
+  done.forEach(r=>{ const v=rec(STORE,r.stt).light; if(v&&lightCount[v]!=null) lightCount[v]++; });
+  const lightRows = LIGHTS.map(l=>'<tr><td>'+l+'</td><td class="num">'+lightCount[l]+'</td><td class="num">'+
+    (done.length?Math.round(lightCount[l]/done.length*100):0)+'%</td></tr>').join("");
+
+  // đề xuất & ưu tiên
+  const cnt = c => done.filter(r=>rec(STORE,r.stt)[c]).length;
+  const prioCount = {"Cao":0,"Trung bình":0,"Thấp":0};
+  done.forEach(r=>{ const p=rec(STORE,r.stt).prio; if(p&&prioCount[p]!=null) prioCount[p]++; });
+  const prioRows = PRIOS.map(p=>'<tr><td>'+p+'</td><td class="num">'+prioCount[p]+'</td></tr>').join("");
+
+  // bảng chi tiết theo địa bàn
+  let detail=""; let curG=null;
+  done.forEach((r,i)=>{
+    const c=rec(STORE,r.stt);
+    if(r.diaban!==curG){ curG=r.diaban;
+      detail+='<tr class="grp"><td colspan="13">'+esc(curG)+'</td></tr>'; }
+    const gps = c.lat? (c.lat+", "+c.lng) : "—";
+    const prCls = c.prio==="Cao"?"pr-Cao":(c.prio==="Trung bình"?"pr-TB":(c.prio==="Thấp"?"pr-Thap":""));
+    detail+='<tr>'+
+      '<td class="num">'+(i+1)+'</td>'+
+      '<td>'+esc(r.ma)+'</td>'+
+      '<td><b>'+esc(r.ten)+'</b><br>'+esc(r.duong)+(r.sonha?" "+esc(r.sonha):"")+'</td>'+
+      '<td>'+esc(r.loai||"—")+'</td>'+
+      '<td>'+esc(gps)+'</td>'+
+      '<td>'+esc(c.light||"—")+'</td>'+
+      '<td class="num">'+esc(c.power||"—")+'</td>'+
+      '<td>'+esc(c.den||"—")+'</td>'+
+      '<td>'+esc(c.cap||"—")+'</td>'+
+      '<td>'+esc(c.tru||"—")+'</td>'+
+      '<td>'+esc(c.phukien||"—")+'</td>'+
+      '<td class="'+prCls+'">'+esc(c.prio||"—")+'</td>'+
+      '<td>'+esc(c.by||"—")+'</td>'+
+      '</tr>';
+    if(c.note){ detail+='<tr><td></td><td colspan="12"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
+  });
+  if(!done.length) detail='<tr><td colspan="13" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
+
+  // phụ lục chưa khảo sát
+  let pendRows="";
+  pending.forEach((r,i)=>{ pendRows+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.diaban)+'</td><td>'+
+    esc(r.ma)+'</td><td>'+esc(r.ten)+'</td><td>'+esc(r.duong)+(r.sonha?" "+esc(r.sonha):"")+'</td></tr>'; });
+  if(!pending.length) pendRows='<tr><td colspan="5" class="num">Đã khảo sát toàn bộ vị trí.</td></tr>';
+
+  document.getElementById("root").innerHTML = `
+  <div class="page">
+    <div class="head-org">Chiếu sáng khu vực Trung Tâm</div>
+    <div class="head-line"></div>
+
+    <h1>Báo cáo kết quả khảo sát hiện trạng,<br>đề xuất bổ sung chiếu sáng công cộng</h1>
+    <p class="subttl">Tại các vị trí trụ dừng / nhà chờ xe buýt khu vực trung tâm TP. Hồ Chí Minh</p>
+    <p class="cancu">Căn cứ Công văn số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026 của Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) và Phụ lục danh mục 107 vị trí kèm theo.</p>
+    <p class="cancu" id="cDate">Ngày lập báo cáo: ${today()}</p>
+
+    <h2>I. Tổng quan kết quả khảo sát</h2>
+    <div class="kpi">
+      <div class="box"><b>${total}</b><span>Tổng số vị trí</span></div>
+      <div class="box"><b>${done.length}</b><span>Đã khảo sát (${total?Math.round(done.length/total*100):0}%)</span></div>
+      <div class="box"><b>${pending.length}</b><span>Chưa khảo sát</span></div>
+      <div class="box"><b>${hasGps}</b><span>Có tọa độ GPS</span></div>
+    </div>
+    <h3>Phân bố theo địa bàn</h3>
+    <table>
+      <tr><th>Địa bàn</th><th>Tổng</th><th>Đã KS</th><th>Chưa KS</th><th>Tỷ lệ</th></tr>
+      ${dbRows}
+      <tr class="grp"><td><b>Tổng cộng</b></td><td class="num"><b>${total}</b></td><td class="num"><b>${done.length}</b></td><td class="num"><b>${pending.length}</b></td><td class="num"><b>${total?Math.round(done.length/total*100):0}%</b></td></tr>
+    </table>
+
+    <h2>II. Thống kê hiện trạng chiếu sáng</h2>
+    <p><i>(Trên ${done.length} vị trí đã khảo sát)</i></p>
+    <table>
+      <tr><th>Hiện trạng</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
+      ${lightRows}
+    </table>
+
+    <h2>III. Tổng hợp đề xuất bổ sung & mức ưu tiên</h2>
+    <h3>Số vị trí có đề xuất theo hạng mục</h3>
+    <table>
+      <tr><th>Đèn</th><th>Cáp</th><th>Trụ</th><th>Phụ kiện</th></tr>
+      <tr><td class="num">${cnt("den")}</td><td class="num">${cnt("cap")}</td><td class="num">${cnt("tru")}</td><td class="num">${cnt("phukien")}</td></tr>
+    </table>
+    <h3>Phân loại theo mức độ ưu tiên</h3>
+    <table>
+      <tr><th>Mức ưu tiên</th><th>Số vị trí</th></tr>
+      ${prioRows}
+    </table>
+
+    <h2>IV. Bảng chi tiết các vị trí đã khảo sát</h2>
+    <table class="detail">
+      <tr>
+        <th>STT</th><th>Mã</th><th>Tên / Địa chỉ</th><th>Loại kết cấu</th><th>Tọa độ GPS</th>
+        <th>HT chiếu sáng</th><th>Nguồn điện (m)</th>
+        <th>ĐX Đèn</th><th>ĐX Cáp</th><th>ĐX Trụ</th><th>ĐX Phụ kiện</th><th>Ưu tiên</th><th>Người KS</th>
+      </tr>
+      ${detail}
+    </table>
+
+    <h2>V. Phụ lục: Vị trí chưa khảo sát</h2>
+    <table>
+      <tr><th>STT</th><th>Địa bàn</th><th>Mã</th><th>Tên điểm</th><th>Địa chỉ</th></tr>
+      ${pendRows}
+    </table>
+
+    <h2>VI. Kết luận & kiến nghị</h2>
+    <textarea id="ketluan">Qua khảo sát ${done.length}/${total} vị trí, đơn vị kiến nghị bổ sung hệ thống chiếu sáng tại các vị trí còn thiếu/yếu, ưu tiên thực hiện trước các vị trí có mức ưu tiên Cao. Kính trình cấp có thẩm quyền xem xét, chấp thuận chủ trương và bố trí kinh phí thực hiện.</textarea>
+
+    <div class="sign">
+      <div>
+        <div class="role">NGƯỜI LẬP BÁO CÁO</div>
+        <div class="hint">(Ký, ghi rõ họ tên)</div>
+        <div class="space"></div>
+        <div id="sBy"></div>
+      </div>
+      <div>
+        <div class="role">XÁC NHẬN CỦA ĐƠN VỊ</div>
+        <div class="hint">(Ký, đóng dấu)</div>
+        <div class="space"></div>
+        <div>&nbsp;</div>
+      </div>
+    </div>
+  </div>`;
+
+  // toolbar liên kết
+  const dEl=document.getElementById("tDate"), bEl=document.getElementById("tBy");
+  dEl.value=today();
+  bEl.value=localStorage.getItem("lavipco_ks_by")||"";
+  const sync=()=>{
+    document.getElementById("cDate").textContent="Ngày lập báo cáo: "+(dEl.value||today());
+    document.getElementById("sBy").textContent=bEl.value||"";
+  };
+  dEl.addEventListener("input",sync); bEl.addEventListener("input",sync); sync();
+}
+</script>
+</body>
+</html>

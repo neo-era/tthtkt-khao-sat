@@ -277,6 +277,7 @@
   <h3>Xuất dữ liệu &amp; đồng bộ</h3>
   <p id="expSummary">—</p>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
+  <a class="btn btn-ghost" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
   <button class="btn btn-export" id="btnCsv">Tải file CSV (mở bằng Excel)</button>
 
   <div class="syncbox">
@@ -652,6 +653,7 @@ document.getElementById("csvIn").addEventListener("change",importCsv);
 document.getElementById("btnWipe").onclick=()=>{ if(confirm("Xóa TOÀN BỘ dữ liệu khảo sát trên thiết bị này?")){ store={}; saveStore(); renderList(); updateExpSummary(); closeSheet(); toast("Đã xóa toàn bộ dữ liệu."); } };
 document.getElementById("syncUrl").value=localStorage.getItem(LS_URL)||DEFAULT_URL;
 
+try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
 renderChips(); renderList();
 </script>
 </body>

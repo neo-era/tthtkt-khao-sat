@@ -107,6 +107,8 @@ Dùng `docs/Bieu_mau_khao_sat_...xlsx` (đã nạp sẵn 107 vị trí, có ô c
 ```
 chieu-sang-trung-tam/
 ├── index.html              # Web app khảo sát (đặt ở gốc để GitHub Pages chạy)
+├── huongdan.html           # Trang hướng dẫn sử dụng
+├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF) theo CV 3471
 ├── manifest.json           # Cấu hình "thêm vào màn hình chính"
 ├── .nojekyll               # Tắt xử lý Jekyll của GitHub Pages
 ├── icons/
