@@ -1,0 +1,15 @@
+{
+  "name": "Khảo sát chiếu sáng & mảng xanh – LAVIPCO",
+  "short_name": "Khảo sát CS&MX",
+  "description": "Khảo sát hiện trường bổ sung chiếu sáng và mảng xanh công cộng tại 107 vị trí trụ dừng/nhà chờ xe buýt.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF2F6",
+  "theme_color": "#0F2A43",
+  "lang": "vi",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
