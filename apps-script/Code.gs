@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  *  LAVIPCO – BACKEND GOOGLE APPS SCRIPT
- *  Web app khảo sát bổ sung chiếu sáng & mảng xanh công cộng (Phụ lục 107 vị trí)
+ *  Web app khảo sát bổ sung chiếu sáng công cộng (Phụ lục 107 vị trí)
  *  CV số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026
  * ----------------------------------------------------------------------------
  *  CÁCH CÀI ĐẶT (làm 1 lần):
@@ -24,16 +24,16 @@
 // Tên sheet chứa dữ liệu khảo sát. Đổi nếu muốn.
 var SHEET_NAME = 'KhaoSat';
 
-// 18 cột app gửi lên + 1 cột thời gian server nhận = 19 cột.
+// 16 cột app gửi lên + 1 cột thời gian server nhận = 17 cột.
 var HEADERS = [
   'STT', 'Mã điểm dừng', 'Tên điểm dừng', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Loại kết cấu', 'Vĩ độ', 'Kinh độ',
-  'HT chiếu sáng', 'HT mảng xanh', 'Nguồn điện (m)',
-  'ĐX chiếu sáng', 'ĐX mảng xanh', 'Ưu tiên', 'Ghi chú khảo sát',
+  'HT chiếu sáng', 'Nguồn điện (m)',
+  'ĐX chiếu sáng', 'Ưu tiên', 'Ghi chú khảo sát',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 19
-var APP_COLS = 18;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 17
+var APP_COLS = 16;                 // số cột app gửi
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -117,7 +117,7 @@ function doGet(e) {
 
   return jsonOut_({
     ok: true,
-    service: 'LAVIPCO Khảo sát chiếu sáng & mảng xanh',
+    service: 'LAVIPCO Khảo sát chiếu sáng',
     sheet: SHEET_NAME,
     total: Math.max(0, sheet.getLastRow() - 1),
     time: nowStr_()
@@ -146,7 +146,7 @@ function setupSheet() {
   sheet.setRowHeight(1, 40);
 
   // Độ rộng cột (đơn vị pixel)
-  var widths = [45, 90, 200, 130, 130, 110, 110, 95, 95, 95, 100, 80, 170, 170, 80, 200, 120, 130, 130];
+  var widths = [45, 90, 200, 130, 130, 110, 110, 95, 95, 95, 80, 170, 80, 200, 120, 130, 130];
   widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
 
   // Định dạng vùng dữ liệu

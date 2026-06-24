@@ -1,7 +1,7 @@
 {
-  "name": "Khảo sát chiếu sáng & mảng xanh – LAVIPCO",
-  "short_name": "Khảo sát CS&MX",
-  "description": "Khảo sát hiện trường bổ sung chiếu sáng và mảng xanh công cộng tại 107 vị trí trụ dừng/nhà chờ xe buýt.",
+  "name": "Khảo sát chiếu sáng – LAVIPCO",
+  "short_name": "Khảo sát CS",
+  "description": "Khảo sát hiện trường bổ sung chiếu sáng công cộng tại 107 vị trí trụ dừng/nhà chờ xe buýt.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
