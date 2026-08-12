@@ -281,6 +281,7 @@
   <div class="grab"></div>
   <h3>Xuất dữ liệu &amp; báo cáo</h3>
   <p id="expSummary">—</p>
+  <button class="btn btn-export" id="btnInstall" style="display:none">⬇️ Cài app vào máy</button>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
   <a class="btn btn-ghost" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
   <button class="btn btn-export" id="btnCsv">Tải file CSV (mở bằng Excel)</button>
@@ -725,6 +726,8 @@ function pullFromSheets(silent){
     .then(js=>{
       if(!js||!js.ok||!Array.isArray(js.values)) throw new Error("Không đọc được dữ liệu từ Sheets.");
       let n=0;
+      const onSheet={};
+      js.values.forEach(v=>{ const s=parseInt(v[0],10); if(s) onSheet[s]=true; });
       js.values.forEach(v=>{
         const stt=parseInt(v[0],10); if(!stt) return;
         const cur=rec(stt);
@@ -751,11 +754,34 @@ function pullFromSheets(silent){
         if(JSON.stringify(cur)===JSON.stringify(next)) return;   // không đổi thì thôi
         store[stt]=next; n++;
       });
-      if(n){ saveStore(); renderList(); updateExpSummary(); }
+
+      /* Dòng bị XÓA trên Sheet → xóa luôn trên máy cho khớp.
+         Chỉ đụng vào bản ghi đã từng được Sheets xác nhận (`sync` có giá trị):
+         bản ghi chưa gửi được lên thì đương nhiên không có trên Sheet, xóa là mất
+         công khảo sát ngoài hiện trường. */
+      const boXoa=[];
+      Object.keys(store).forEach(k=>{
+        const stt=parseInt(k,10); if(!stt || onSheet[stt]) return;
+        const c=store[k]; if(!c||!c.sync) return;
+        if((c.photos||[]).some(p=>p&&p.d&&!p.id)) return;   // còn ảnh chưa lên Drive
+        boXoa.push(k);
+      });
+      let del=0;
+      if(boXoa.length){
+        // Sheet trống trơn có thể do sự cố (đổi tên sheet, sai URL…) → hỏi trước khi dọn sạch
+        const ok = js.values.length>0 ||
+          confirm("Google Sheet đang trống.\nXóa dữ liệu khảo sát của "+boXoa.length+" điểm trên máy này cho khớp?");
+        if(ok) boXoa.forEach(k=>{ delete store[k]; del++; });
+      }
+
+      if(n||del){ saveStore(); renderList(); updateExpSummary(); }
       // Có thay đổi thì luôn báo (kể cả lúc chạy ngầm), không có gì mới thì im lặng
-      if(n) toast("Đã cập nhật "+n+" điểm từ Google Sheets.");
+      const msg=[];
+      if(n) msg.push("cập nhật "+n+" điểm");
+      if(del) msg.push("xóa "+del+" điểm đã bị gỡ khỏi Sheet");
+      if(msg.length) toast("Đã "+msg.join(", ")+".");
       else if(!silent) toast("Dữ liệu đã khớp với Google Sheets.");
-      return n;
+      return n+del;
     })
     .catch(()=>{ if(!silent) toast("Chưa đọc được dữ liệu từ Google Sheets."); return 0; });
 }
@@ -822,6 +848,29 @@ renderChips(); renderWards(); renderList();
    mới nhất trên Sheets (để thấy các điểm cán bộ khác đã khảo sát). */
 window.addEventListener("online", ()=>syncBothWays(false));
 if(navigator.onLine) setTimeout(()=>syncBothWays(true), 1200);
+
+/* ---------- PWA: cài vào máy & chạy được khi mất sóng ----------
+   Service worker chỉ đăng ký được qua https:// (GitHub Pages). Mở file trực tiếp
+   từ ổ đĩa thì bỏ qua — app vẫn chạy, chỉ không cài & không cache được. */
+if("serviceWorker" in navigator && location.protocol.indexOf("http")===0){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+/* Chrome/Edge (Android & máy tính) bắn sự kiện này khi app đủ điều kiện cài.
+   iPhone/Safari không có — phải dùng Chia sẻ → Thêm vào MH chính (xem hướng dẫn). */
+let installEvt=null;
+const btnInstall=document.getElementById("btnInstall");
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault(); installEvt=e; btnInstall.style.display="flex";
+});
+btnInstall.onclick=()=>{
+  if(!installEvt) return;
+  installEvt.prompt();
+  installEvt.userChoice.then(r=>{
+    if(r && r.outcome==="accepted") toast("Đã cài app vào máy.");
+    installEvt=null; btnInstall.style.display="none";
+  });
+};
+window.addEventListener("appinstalled",()=>{ btnInstall.style.display="none"; toast("Đã cài app vào máy."); });
 </script>
 </body>
 </html>

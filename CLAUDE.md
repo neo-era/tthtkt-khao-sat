@@ -14,6 +14,7 @@ Nguồn danh mục: `docs/DS TRẠM DỪNG XE BUÝT.xlsx` (Trung tâm Quản lý
 ## Kiến trúc (3 thành phần)
 
 1. **Front-end** — `index.html`: một file HTML duy nhất, **vanilla JS thuần, KHÔNG có thư viện ngoài / CDN / build step**. Lưu offline bằng `localStorage`.
+   - `sw.js` + `manifest.json` biến nó thành **PWA cài được**. `sw.js` buộc phải là file riêng (chuẩn của trình duyệt, không phải dependency) — đây là ngoại lệ duy nhất của luật "mọi thứ inline".
 2. **Back-end** — `apps-script/Code.gs`: Google Apps Script Web App, lưu dữ liệu vào Google Sheet. Upsert theo STT.
 3. **Danh mục nguồn** — `docs/DS TRẠM DỪNG XE BUÝT.xlsx` + `tools/build_raw.py` (cần `openpyxl`) để nạp lại mảng `RAW` vào `index.html`. File Excel có 3.754 dòng cho toàn TP.HCM/Vũng Tàu/Bình Dương; **phạm vi khảo sát chỉ là 610 dòng có mã địa bàn ở cột 6** (Q1/Q3/Q5/Q8/Q10/Q11/PN/BT), các dòng còn lại bị script bỏ qua.
 4. **Biểu mẫu** — `docs/Bieu_mau_khao_sat_...xlsx`: phiên bản Excel để in / nhập trên máy tính. ⚠️ **Chưa cập nhật** — vẫn theo danh mục 107 vị trí cũ.
@@ -22,6 +23,7 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 
 ## RÀNG BUỘC BẮT BUỘC (đừng phá vỡ)
 
+- **`sw.js` dùng network-first, KHÔNG đổi sang cache-first.** App là 1 file HTML nhúng sẵn 610 vị trí và được sửa/deploy liên tục; ưu tiên cache là cán bộ kẹt ở bản cũ mà không hay. Sửa `sw.js` phải **tăng `VERSION`** để cache cũ bị dọn. Request khác origin (Apps Script, Drive) và mọi POST **không được đi qua cache**.
 - **Không thêm dependency ngoài.** App phải chạy offline ngoài hiện trường → không thêm `<script src>` từ CDN, không npm, không framework. Mọi thứ inline trong `index.html`. (Trang dashboard bản đồ tương lai nếu dùng Leaflet thì để **trang riêng**, không nhét vào app khảo sát chính.)
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
@@ -59,7 +61,7 @@ Cột 17–19 là **link Drive**, chỉ xuất ra — `importCsv` bỏ qua (khô
 
 ### Đồng bộ Google Sheets
 - URL Apps Script được nhúng sẵn (`DEFAULT_URL` trong index.html); ô nhập URL pre-fill bằng URL này.
-- Mỗi lần bấm **Lưu khảo sát điểm này** → ngoài lưu localStorage còn **tải ảnh chưa lên Drive trước**, rồi mới POST dòng dữ liệu (đã kèm link ảnh) lên Sheets, nếu `navigator.onLine`. Offline thì lưu máy, đồng bộ sau ở mục Xuất/Đồng bộ (nút đó cũng tải ảnh tồn trước rồi mới gửi dòng).
+- Mỗi lần bấm **Lưu khảo sát điểm này** → ngoài lưu localStorage còn **tải ảnh chưa lên Drive trước**, rồi mới POST dòng dữ liệu (đã kèm link ảnh) lên Sheets, nếu `navigator.onLine`. Offline thì lưu máy, tự gửi lại sau (xem `syncBothWays`).
 - **`postRows` phải đọc JSON trả về và ném lỗi khi `ok === false`.** Chỉ dựa vào `fetch` thành công là sai: Apps Script trả HTTP 200 kèm `{ok:false}` khi lỗi (khóa bận, sai schema…), app sẽ báo "đã đồng bộ" trong khi Sheet trống. Đánh dấu `sync` chỉ diễn ra sau khi đã qua kiểm tra này.
 - **Đồng bộ hai chiều** (`syncBothWays`): gửi phần còn tồn (`pushPending`) rồi đọc về (`pullFromSheets`). Chạy khi có sự kiện `online`, một lần lúc mở app, và mỗi lần mở bảng Xuất dữ liệu. Không có hàng đợi riêng — `unsynced()` suy ra từ `sync` rỗng nên không bao giờ lệch trạng thái.
 
@@ -69,6 +71,8 @@ Nhiều cán bộ dùng chung một Sheet → máy này phải thấy điểm m�
 Hai luật **không được phá**, nếu không sẽ mất dữ liệu hiện trường:
 1. Bản ghi cục bộ `isDone` mà `sync` rỗng = có sửa đổi chưa lên Sheets → **bỏ qua, không đè**.
 2. Bản ghi còn ảnh `d` chưa có `id` (chưa lên Drive) → **bỏ qua**, vì Sheet chỉ có link, đè vào là mất ảnh.
+
+**Xóa theo Sheet**: dòng bị xóa trên Sheet thì bản ghi tương ứng trên máy cũng bị xóa (nếu không, app cứ báo "Đã lên Sheets" cho dữ liệu không còn tồn tại). Áp dụng đúng hai luật trên: chỉ xóa bản ghi **đã từng được Sheets xác nhận** (`sync` có giá trị) và **không còn ảnh chờ lên Drive** — bản ghi chưa gửi được thì đương nhiên vắng mặt trên Sheet, xóa là mất công khảo sát. Nếu Sheet trả về **0 dòng** (có thể do đổi tên sheet / sai URL chứ không phải người dùng thật sự xóa) thì `confirm()` hỏi trước khi dọn.
 
 Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác), và bản ghi không đổi thì không ghi lại (so bằng `JSON.stringify`) để khỏi báo nhầm "đã cập nhật".
 - **App không còn nút đồng bộ tay / nhập CSV / xóa toàn bộ / ô nhập URL** (bỏ theo yêu cầu 12/8/2026 để màn hình gọn cho cán bộ hiện trường). Hệ quả: `currentSyncUrl()` chỉ đọc `LS_URL` rồi `DEFAULT_URL`; muốn đổi backend phải sửa `DEFAULT_URL` trong code hoặc set `LS_URL` qua console. Đường thoát duy nhất khi Sheets hỏng là **Tải file CSV**.
@@ -86,7 +90,9 @@ Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác),
 - `lavipco_ks_raw_v1`  — bản sao danh mục `RAW` do `index.html` ghi mỗi lần mở; `baocao.html` đọc lại để dựng báo cáo mà không cần nhúng lại RAW.
 
 ### Trang báo cáo (`baocao.html`)
-Trang in được độc lập, đọc `lavipco_ks_raw_v1` + `lavipco_ks_data_v3` từ localStorage (cùng origin), tự tính tổng quan / phân bố theo địa bàn–phường/xã / thống kê loại nhà chờ – vị trí trụ – loại trụ đèn / khoảng cách trung bình + mức ưu tiên / bảng chi tiết nhóm theo phường/xã / phụ lục vị trí chưa khảo sát / kết luận. Vào từ nút "Xuất báo cáo khảo sát" trong sheet Xuất/Đồng bộ. **Phải mở `index.html` trước ít nhất 1 lần** để có `lavipco_ks_raw_v1`.
+Trang in được độc lập, đọc `lavipco_ks_raw_v1` + `lavipco_ks_data_v3` từ localStorage (cùng origin), tự tính tổng quan / phân bố theo địa bàn–phường/xã / thống kê loại nhà chờ – vị trí trụ – loại trụ đèn / khoảng cách trung bình + mức ưu tiên / bảng chi tiết nhóm theo phường/xã / phụ lục vị trí chưa khảo sát / **phụ lục ảnh hiện trường** / kết luận.
+
+**Ảnh trong báo cáo**: ảnh còn dataURL trên máy (`p.d`) nhúng thẳng nên luôn in được; ảnh đã lên Drive lấy qua `https://drive.google.com/thumbnail?id=<id>&sz=w200` (ô trong bảng) và `sz=w800` (phụ lục) — **cần mạng lúc in và file phải ở chế độ ai-có-link-cũng-xem**. Ảnh Drive hỏng được `onerror` thay bằng dòng chữ, đừng để ô trống trên bản in. Checkbox *In kèm phụ lục ảnh* trên thanh công cụ bật/tắt cả mục VI (hàng trăm ảnh in ra rất dày). Vào từ nút "Xuất báo cáo khảo sát" trong bảng Xuất dữ liệu. **Phải mở `index.html` trước ít nhất 1 lần** để có `lavipco_ks_raw_v1`.
 
 ### Danh mục vị trí gốc (nguồn dữ liệu chuẩn)
 Mảng `RAW` (JSON, 1 dòng duy nhất) nhúng trong `<script>` của `index.html`. Mỗi phần tử:

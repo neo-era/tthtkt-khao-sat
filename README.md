@@ -14,7 +14,7 @@
 | **Backend Google Sheets** | `apps-script/Code.gs` | Nhận dữ liệu từ app, lưu vào Google Sheet (có chống trùng theo STT). |
 | **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc (3.754 dòng); `tools/build_raw.py` lọc ra 610 vị trí trong phạm vi và nạp vào `index.html`. |
 | **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | ⚠️ Phiếu Excel cũ, **vẫn theo danh mục 107 vị trí đã bỏ** — cần dựng lại nếu còn dùng. |
-| Manifest + icon | `manifest.json`, `icons/` | Cho phép "Thêm vào màn hình chính" như một app thật. |
+| **PWA** | `manifest.json`, `sw.js`, `icons/` | Cài được vào máy như app thật, mở được cả khi mất sóng. |
 
 Toàn bộ app là **một file HTML duy nhất, không phụ thuộc thư viện ngoài**, nên chạy được cả khi mất mạng ngoài hiện trường.
 
@@ -26,7 +26,7 @@ Toàn bộ app là **một file HTML duy nhất, không phụ thuộc thư việ
 
 1. Đăng nhập [github.com](https://github.com) → bấm **New repository**.
 2. Đặt tên, ví dụ `chieu-sang-trung-tam` → chọn **Public** → **Create repository**.
-3. Trong repo trống, bấm **uploading an existing file** → kéo thả **toàn bộ nội dung bên trong thư mục này** (gồm `index.html`, `manifest.json`, thư mục `icons/`, `apps-script/`, `docs/`, file `.nojekyll`).
+3. Trong repo trống, bấm **uploading an existing file** → kéo thả **toàn bộ nội dung bên trong thư mục này** (gồm `index.html`, `baocao.html`, `huongdan.html`, `manifest.json`, `sw.js`, thư mục `icons/`, `apps-script/`, `tools/`, `docs/`, file `.nojekyll`).
    - Lưu ý: kéo *các file bên trong*, không kéo nguyên thư mục mẹ, để `index.html` nằm ở **gốc repo**.
 4. Bấm **Commit changes**.
 5. Vào **Settings → Pages**:
@@ -77,13 +77,31 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 
 ## 4. Cách sử dụng ngoài hiện trường
 
-1. Mở app (nên **Thêm vào màn hình chính** để dùng như app: trình duyệt → menu → *Add to Home Screen*).
+1. **Cài app vào máy** (xem mục 4b). Lần đầu phải mở khi có mạng để máy lưu app lại.
 2. Màn hình danh sách: lọc theo địa bàn (chip), chọn **phường/xã** ở ô bên dưới, lọc trạng thái hoặc gõ tìm kiếm; xem tiến độ X/610 ở trên cùng. Danh sách nạp dần 200 vị trí mỗi lần (nút **Xem thêm**).
 3. Chạm một vị trí → bấm **Định vị** để lấy tọa độ GPS, nhập 2 khoảng cách (trụ đèn ↔ trụ dừng, trụ dừng ↔ trụ đèn kế), chọn **Loại trụ dừng/nhà chờ**, **Vị trí trụ so với nhà chờ**, **Loại trụ đèn**, **Ưu tiên đề xuất**, chụp **tối đa 3 ảnh**, ghi chú thêm → **Lưu khảo sát điểm này**. Bộ trường bám theo bảng giấy *Tổng hợp kết quả tính toán lựa chọn bộ đèn LED*.
    - **Bấm Định vị trước khi chụp ảnh** — ảnh được đóng dấu tọa độ ngay lúc chụp, chưa có tọa độ thì trên ảnh ghi "chưa lấy được".
 4. Dữ liệu được **lưu ngay trên điện thoại** (đóng app mở lại không mất). Có mạng thì ảnh tự lên **Google Drive** trước, rồi dòng dữ liệu kèm link ảnh lên **Google Sheets**. Mỗi ảnh cũng tự lưu một bản về bộ nhớ máy.
 5. Thẻ trong danh sách hiện **Đã lên Sheets** (xanh) hay **Chưa đồng bộ** (vàng) để biết điểm nào đã tới bảng tính.
 6. Khi mất mạng lúc lưu: **không phải làm gì cả** — app tự gửi lại khi có mạng trở lại, khi mở app, và mỗi lần mở bảng **Xuất dữ liệu**.
+
+### 4b. Cài app vào máy (PWA)
+
+App là **Progressive Web App**: cài xong có biểu tượng riêng, mở toàn màn hình (không thanh địa chỉ), và **mở được cả khi không có sóng**.
+
+| Thiết bị | Cách cài |
+|---|---|
+| **Android** (Chrome) | Mở **Xuất dữ liệu** → **⬇️ Cài app vào máy**. Hoặc menu ⋮ → *Cài ứng dụng*. |
+| **Máy tính** (Chrome / Edge) | Y hệt Android, hoặc bấm biểu tượng cài ⊕ ở thanh địa chỉ. |
+| **iPhone / iPad** (Safari) | Nút Chia sẻ → **Thêm vào MH chính**. Safari không hỗ trợ nút cài tự động. |
+
+> Nút **⬇️ Cài app vào máy** chỉ hiện khi trình duyệt hỗ trợ và app chưa được cài.
+
+**Cập nhật phiên bản:** `sw.js` dùng chiến lược *mạng trước, cache dự phòng* — mỗi lần mở app có mạng là tự lấy bản mới nhất từ GitHub Pages, không cần gỡ cài lại. Mất sóng thì dùng bản đã lưu.
+
+**Khi sửa code:** nhớ tăng `VERSION` trong `sw.js` (`ks-v1` → `ks-v2`…) để cache cũ được dọn sạch.
+
+> PWA **chỉ hoạt động qua `https://`**. Mở file `index.html` trực tiếp từ ổ đĩa thì không cài được, không cache được — giống như GPS và camera.
 
 ---
 
@@ -96,13 +114,25 @@ Không. Backend dùng cơ chế *upsert theo STT*: điểm đã có sẽ đượ
 Được. App lưu offline; khi có mạng đồng bộ sau.
 
 **Báo "Bộ nhớ đầy"?**
-Do ảnh chưa kịp lên Drive tích lại trên máy. Ảnh đã nén xuống ~1024px, nhưng khảo sát offline nhiều điểm liên tiếp (mỗi điểm tối đa 3 ảnh) vẫn có thể đầy. Hãy vào **Xuất / Đồng bộ** khi có mạng — ảnh lên Drive xong là app tự xóa bản nặng khỏi bộ nhớ máy.
+Do ảnh chưa kịp lên Drive tích lại trên máy. Ảnh đã nén xuống ~1024px, nhưng khảo sát offline nhiều điểm liên tiếp (mỗi điểm tối đa 3 ảnh) vẫn có thể đầy. Hãy mở **Xuất dữ liệu** khi có mạng — ảnh lên Drive xong là app tự xóa bản nặng khỏi bộ nhớ máy.
 
 **Ảnh lưu ở đâu?**
 Ba nơi: (1) bộ nhớ máy — tự tải về ngay khi chụp, đây là bản sao lưu chắc chắn nhất; (2) **Google Drive**, thư mục *Anh khao sat chieu sang - Tram dung xe buyt* trong Drive của tài khoản chạy Apps Script, tên file `KS_<STT>_<số ảnh>.jpg`; (3) **link** tới file Drive ghi vào 3 cột *Ảnh 1/2/3* của Google Sheet. Chụp lại cùng một ô ảnh sẽ ghi đè file cũ trên Drive.
 
 **Ảnh có thông tin gì trên đó?**
 Ngay lúc chụp, app vẽ đè lên góc dưới ảnh: **địa chỉ điểm** (tuyến đường – số nhà, phường/xã, địa bàn), **tọa độ GPS** kèm sai số, và **ngày giờ chụp**. Không cần mạng vì địa chỉ lấy từ danh mục có sẵn trong app.
+
+**Báo cáo có in được ảnh không?**
+Có. Cột *Ảnh hiện trường* trong bảng chi tiết hiện ảnh thu nhỏ, và mục **VI. Phụ lục ảnh hiện trường** in ảnh khổ lớn theo từng vị trí (3 ảnh/hàng), kèm địa chỉ, tọa độ và mức ưu tiên. Bỏ tick **“In kèm phụ lục ảnh”** trên thanh công cụ nếu chỉ cần bản gọn.
+
+> Ảnh đã lên Drive được nạp trực tiếp từ Drive, nên **lúc in phải có mạng**. Ảnh nào Drive chặn chia sẻ sẽ hiện dòng cảnh báo thay vì ô trống.
+
+**Xóa dòng trên Google Sheet thì app có cập nhật theo không?**
+Có. Lần đồng bộ kế tiếp (mở app / có mạng trở lại / mở bảng **Xuất dữ liệu**) app sẽ xóa luôn bản ghi đó trên máy và điểm quay về **Chưa khảo sát**.
+
+Hai trường hợp app **cố tình không xóa**, vì đó là dữ liệu chưa từng lên Sheet nên vắng mặt là chuyện đương nhiên: điểm đang chờ gửi (nhãn vàng *Chưa đồng bộ*), và điểm còn ảnh chưa lên Drive. Nếu Sheet trống trơn, app hỏi lại trước khi dọn — phòng trường hợp mất kết nối hoặc sai cấu hình chứ không phải anh thật sự xóa.
+
+> Xóa dòng trên Sheet **không xóa ảnh trên Drive**. Muốn dọn thì vào thư mục ảnh xóa tay.
 
 **Nhiều cán bộ cùng khảo sát?**
 Mỗi người mở cùng một link, đồng bộ về **cùng một Google Sheet**. Backend có khóa (LockService) chống ghi đè khi đồng bộ đồng thời.
@@ -130,7 +160,8 @@ chieu-sang-trung-tam/
 ├── index.html              # Web app khảo sát (đặt ở gốc để GitHub Pages chạy)
 ├── huongdan.html           # Trang hướng dẫn sử dụng
 ├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF)
-├── manifest.json           # Cấu hình "thêm vào màn hình chính"
+├── manifest.json           # Cấu hình PWA (tên, icon, shortcut)
+├── sw.js                   # Service worker: cài app + chạy khi mất sóng
 ├── .nojekyll               # Tắt xử lý Jekyll của GitHub Pages
 ├── icons/
 │   ├── icon-192.png

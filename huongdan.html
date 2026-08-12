@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#0F2A43">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Khảo sát CS">
 <title>Hướng dẫn sử dụng – Khảo sát chiếu sáng</title>
 <style>
   :root{
@@ -72,13 +76,14 @@
   </div>
 
   <div class="sec">
-    <h3><span class="num">1</span> Cài đặt vào màn hình chính</h3>
-    <p>Để dùng như một app riêng (mở nhanh, chạy offline):</p>
+    <h3><span class="num">1</span> Cài app vào máy</h3>
+    <p>Cài rồi thì app có biểu tượng riêng, mở toàn màn hình và <b>vẫn mở được khi mất sóng</b>:</p>
     <ul>
-      <li><b>iPhone (Safari):</b> bấm nút Chia sẻ → <b>“Thêm vào MH chính”</b>.</li>
-      <li><b>Android (Chrome):</b> menu ⋮ → <b>“Thêm vào màn hình chính”</b>.</li>
+      <li><b>Android (Chrome) &amp; máy tính (Chrome / Edge):</b> mở <b>Xuất dữ liệu</b> → bấm <b>“⬇️ Cài app vào máy”</b>. Hoặc bấm biểu tượng cài đặt ở thanh địa chỉ.</li>
+      <li><b>iPhone / iPad (Safari):</b> bấm nút Chia sẻ → <b>“Thêm vào MH chính”</b>. Safari không có nút cài tự động nên phải làm cách này.</li>
     </ul>
-    <div class="tip">Sau khi cài, mở app từ biểu tượng ngoài màn hình để có giao diện toàn màn hình.</div>
+    <div class="tip">Nút <b>“Cài app vào máy”</b> chỉ hiện khi máy hỗ trợ và app <b>chưa</b> được cài. Không thấy nút nghĩa là đã cài rồi, hoặc máy dùng Safari.</div>
+    <div class="note"><b>Lần đầu phải mở khi có mạng</b> để máy tải và lưu app lại. Sau đó ra hiện trường mất sóng vẫn mở được. Mỗi lần mở có mạng, app tự lấy bản mới nhất.</div>
   </div>
 
   <div class="sec">
@@ -112,7 +117,7 @@
       <li><span class="tag gps">Đã lên Sheets</span> — bảng tính đã nhận, xác nhận từ máy chủ.</li>
       <li><span class="tag pend">Chưa đồng bộ</span> — mới lưu trên máy. Không cần làm gì: app <b>tự gửi lại</b> khi có mạng trở lại, khi mở app, và mỗi lần mở bảng <b>Xuất dữ liệu</b>.</li>
     </ul>
-    <div class="note"><b>Nhiều người cùng khảo sát:</b> app cũng <b>đọc ngược từ Google Sheets</b> nên máy của anh/chị sẽ thấy các điểm đồng nghiệp vừa làm xong (kèm ảnh). Điểm nào mình đang sửa mà chưa gửi lên được thì <b>không bị ghi đè</b>.</div>
+    <div class="note"><b>Nhiều người cùng khảo sát:</b> app cũng <b>đọc ngược từ Google Sheets</b> nên máy của anh/chị sẽ thấy các điểm đồng nghiệp vừa làm xong (kèm ảnh). Điểm nào mình đang sửa mà chưa gửi lên được thì <b>không bị ghi đè</b>. Ngược lại, dòng nào <b>bị xóa trên Google Sheet</b> thì lần đồng bộ sau app cũng xóa trên máy, điểm quay về <span class="tag pend">Chưa khảo sát</span>.</div>
     <div class="note"><b>Lưu ý:</b> phải bấm <b>Lưu</b> thì dữ liệu (kể cả ảnh &amp; tọa độ) mới được ghi lại. Nút thùng rác để xóa dữ liệu khảo sát của riêng điểm đang mở.</div>
   </div>
 
@@ -120,7 +125,7 @@
     <h3><span class="num">4</span> Xuất dữ liệu &amp; báo cáo</h3>
     <p>Bấm nút <b>“Xuất dữ liệu”</b> (góc phải dưới). Dòng đầu cho biết đã khảo sát bao nhiêu vị trí, còn bao nhiêu điểm chưa lên Sheets và bao nhiêu ảnh chưa lên Drive. Mở bảng này cũng khiến app <b>gửi nốt phần còn tồn và đọc về trạng thái mới nhất</b> từ Google Sheets.</p>
     <ul>
-      <li><b>Xuất báo cáo khảo sát:</b> mở trang báo cáo hoàn chỉnh (tổng quan, thống kê, bảng chi tiết, kết luận) — bấm <b>In / Lưu PDF</b> để nộp.</li>
+      <li><b>Xuất báo cáo khảo sát:</b> mở trang báo cáo hoàn chỉnh (tổng quan, thống kê, bảng chi tiết, <b>phụ lục ảnh hiện trường</b>, kết luận) — bấm <b>In / Lưu PDF</b> để nộp. Bỏ tick <b>“In kèm phụ lục ảnh”</b> nếu chỉ cần bản gọn; in kèm ảnh thì <b>cần có mạng</b> vì ảnh nạp từ Google Drive.</li>
       <li><b>Tải file CSV:</b> xuất toàn bộ ra file mở được bằng Excel.</li>
     </ul>
     <div class="note"><b>Không còn nút đồng bộ tay</b> — app tự gửi lên Google Sheets ngay khi bấm Lưu, và tự gửi lại nếu lúc đó chưa có mạng. Cứ nhìn nhãn trên thẻ để biết điểm nào đã tới bảng tính.</div>
