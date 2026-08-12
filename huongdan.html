@@ -68,7 +68,7 @@
 
   <div class="intro">
     <h2>Ứng dụng khảo sát hiện trường</h2>
-    <p>Công cụ ghi nhận hiện trạng chiếu sáng tại các trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý (khu vực TP.HCM, Vũng Tàu, Bình Dương). Dữ liệu lưu ngay trên thiết bị, có thể dùng <b>không cần mạng</b> và tự đồng bộ lên Google Sheets khi có internet.</p>
+    <p>Công cụ ghi nhận hiện trạng chiếu sáng tại các trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý, địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận và Bình Thạnh. Dữ liệu lưu ngay trên thiết bị, có thể dùng <b>không cần mạng</b> và tự đồng bộ lên Google Sheets khi có internet.</p>
   </div>
 
   <div class="sec">
@@ -86,7 +86,7 @@
     <ul>
       <li><b>Ô tìm kiếm:</b> gõ tên đường, số nhà, phường/xã hoặc số STT.</li>
       <li><b>Chip lọc trạng thái:</b> <span class="tag pend">Chưa khảo sát</span> / Đã khảo sát / Tất cả.</li>
-      <li><b>Chip lọc khu vực:</b> TP.HCM / Vũng Tàu / Bình Dương.</li>
+      <li><b>Chip lọc địa bàn:</b> Quận 1 / 3 / 5 / 8 / 10 / 11 / Phú Nhuận / Bình Thạnh.</li>
       <li><b>Ô chọn phường/xã:</b> thu hẹp danh sách về đúng phường/xã đang đi khảo sát.</li>
       <li>Danh sách nạp dần 200 vị trí mỗi lần — kéo xuống cuối bấm <b>“Xem thêm”</b>.</li>
       <li>Thanh tiến độ trên cùng hiển thị số điểm <b>đã khảo sát / tổng số</b>.</li>
@@ -97,14 +97,21 @@
     <h3><span class="num">3</span> Khảo sát một điểm</h3>
     <p>Bấm vào một thẻ vị trí trong danh sách để mở màn hình khảo sát, rồi nhập:</p>
     <div class="step"><span class="b">1</span><span class="x"><b>Tọa độ GPS:</b> bấm <b>Định vị</b> để lấy tự động (cần bật GPS &amp; cấp quyền), hoặc nhập tay vĩ độ / kinh độ. Bấm <b>Mở vị trí trên Google Maps</b> để kiểm tra.</span></div>
-    <div class="step"><span class="b">2</span><span class="x"><b>Hiện trạng chiếu sáng:</b> chọn Đầy đủ / Thiếu-Yếu / Hư hỏng / Không có.</span></div>
-    <div class="step"><span class="b">3</span><span class="x"><b>Khoảng cách đến nguồn điện</b> gần nhất (mét).</span></div>
-    <div class="step"><span class="b">4</span><span class="x"><b>Đề xuất bổ sung chiếu sáng</b> — nhập riêng theo 4 mục: <b>Đèn · Cáp · Trụ · Phụ kiện</b>.</span></div>
-    <div class="step"><span class="b">5</span><span class="x"><b>Mức độ ưu tiên:</b> <span class="tag hi">Cao</span> / Trung bình / Thấp.</span></div>
-    <div class="step"><span class="b">6</span><span class="x"><b>Ghi chú</b> hiện trạng, vướng mắc, kiến nghị.</span></div>
-    <div class="step"><span class="b">7</span><span class="x"><b>Hình ảnh hiện trường:</b> chụp hoặc chọn ảnh — ảnh được nén tự động và <b>tự lưu một bản về bộ nhớ máy</b> (thư mục Tải về / Thư viện). Có nút <b>“Lưu ảnh về máy”</b> để tải lại bất cứ lúc nào.</span></div>
-    <div class="step"><span class="b">8</span><span class="x"><b>Người khảo sát:</b> nhập họ tên (sẽ được nhớ cho các điểm sau).</span></div>
-    <p style="margin-top:6px">Cuối cùng bấm <b>“Lưu khảo sát điểm này”</b>. Thẻ sẽ chuyển sang trạng thái <span class="tag gps">Đã khảo sát</span> và dữ liệu được <b>tự động đồng bộ lên Google Sheets</b> ngay (nếu có mạng).</p>
+    <div class="step"><span class="b">2</span><span class="x"><b>Khoảng cách trụ đèn đến trụ dừng / nhà chờ</b> (mét) — đo <b>theo hướng xe buýt lưu thông</b>.</span></div>
+    <div class="step"><span class="b">3</span><span class="x"><b>Khoảng cách trụ dừng / nhà chờ đến trụ đèn tiếp theo</b> (mét).</span></div>
+    <div class="step"><span class="b">4</span><span class="x"><b>Loại trụ dừng, nhà chờ:</b> Nhà chờ chưa cải tạo / Đã lắp mới.</span></div>
+    <div class="step"><span class="b">5</span><span class="x"><b>Vị trí trụ đèn so với nhà chờ:</b> Cùng phía / Đối diện.</span></div>
+    <div class="step"><span class="b">6</span><span class="x"><b>Loại trụ đèn:</b> BTLT / STK côn tròn / STK bát giác.</span></div>
+    <div class="step"><span class="b">7</span><span class="x"><b>Ưu tiên đề xuất:</b> <span class="tag hi">Ưu tiên 1</span> / Ưu tiên 2.</span></div>
+    <div class="step"><span class="b">8</span><span class="x"><b>Ghi chú thêm</b> — vd: chưa có đèn, vướng cây xanh…</span></div>
+    <div class="step"><span class="b">9</span><span class="x"><b>Hình ảnh hiện trường — tối đa 3 ảnh:</b> chạm vào ô <b>＋ Ảnh 1 / 2 / 3</b> để chụp. Ảnh tự được đóng dấu <b>địa chỉ · tọa độ GPS · ngày giờ chụp</b> ở góc dưới, <b>tự lưu một bản về bộ nhớ máy</b> và tự tải lên <b>Google Drive</b> khi có mạng (ô ảnh hiện <span class="tag gps">Drive ✓</span> khi xong). Chạm nút <b>×</b> góc ô để xóa ảnh, chụp lại cùng ô sẽ ghi đè bản cũ trên Drive.</span></div>
+    <div class="note" style="margin:8px 0"><b>Nhớ bấm “Định vị” trước khi chụp</b> — tọa độ được in thẳng lên ảnh tại thời điểm chụp. Chưa có tọa độ thì trên ảnh sẽ ghi “Tọa độ: chưa lấy được”.</div>
+    <div class="step"><span class="b">10</span><span class="x"><b>Người khảo sát:</b> nhập họ tên (sẽ được nhớ cho các điểm sau).</span></div>
+    <p style="margin-top:6px">Cuối cùng bấm <b>“Lưu khảo sát điểm này”</b>. Ảnh lên Google Drive trước, rồi dòng dữ liệu kèm link ảnh <b>được gửi ngay lên Google Sheets</b> (nếu có mạng). Thẻ trong danh sách cho biết kết quả:</p>
+    <ul>
+      <li><span class="tag gps">Đã lên Sheets</span> — bảng tính đã nhận, xác nhận từ máy chủ.</li>
+      <li><span class="tag pend">Chưa đồng bộ</span> — mới lưu trên máy. App <b>tự gửi lại khi có mạng trở lại</b> và một lần nữa mỗi khi mở app; muốn gửi ngay thì vào <b>Xuất / Đồng bộ</b>.</li>
+    </ul>
     <div class="note"><b>Lưu ý:</b> phải bấm <b>Lưu</b> thì dữ liệu (kể cả ảnh &amp; tọa độ) mới được ghi lại. Nếu lúc lưu không có mạng, dữ liệu vẫn ở trên máy — hãy vào mục <b>Xuất / Đồng bộ</b> để đẩy lên khi có internet. Nút thùng rác để xóa dữ liệu khảo sát của riêng điểm đang mở.</div>
   </div>
 
@@ -114,7 +121,7 @@
     <ul>
       <li><b>Xuất báo cáo khảo sát:</b> mở trang báo cáo hoàn chỉnh (tổng quan, thống kê, bảng chi tiết, kết luận) — bấm <b>In / Lưu PDF</b> để nộp.</li>
       <li><b>Tải file CSV:</b> xuất toàn bộ ra file mở được bằng Excel.</li>
-      <li><b>Đồng bộ lên Google Sheets:</b> gửi các điểm đã khảo sát lên bảng tính (URL đã được cài sẵn).</li>
+      <li><b>Đồng bộ lên Google Sheets:</b> tải nốt các ảnh còn tồn lên Google Drive, rồi gửi các điểm đã khảo sát (kèm link ảnh) lên bảng tính. Dòng tóm tắt phía trên cho biết còn bao nhiêu ảnh chưa lên Drive.</li>
       <li><b>Nhập lại dữ liệu từ CSV:</b> khôi phục / gộp dữ liệu từ file CSV đã xuất trước đó.</li>
       <li><b>Xóa toàn bộ dữ liệu:</b> xóa sạch dữ liệu khảo sát trên thiết bị (cẩn trọng!).</li>
     </ul>

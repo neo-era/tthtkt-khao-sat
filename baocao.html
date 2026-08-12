@@ -80,14 +80,24 @@
 <div id="root"></div>
 
 <script>
-const LIGHTS = ["Đầy đủ","Thiếu/Yếu","Hư hỏng","Không có"];
-const PRIOS  = ["Cao","Trung bình","Thấp"];
+const NHACHOS = ["Nhà chờ chưa cải tạo","Đã lắp mới"];
+const VITRIS  = ["Cùng phía","Đối diện"];
+const LOAITRUS= ["BTLT","STK côn tròn","STK bát giác"];
+const PRIOS   = ["Ưu tiên 1","Ưu tiên 2"];
 
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
-function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v2"))||{}; }catch(e){ return {}; } }
+function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v3"))||{}; }catch(e){ return {}; } }
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 function rec(store,stt){ return store[stt]||{}; }
-function isDone(r){ return !!(r.light||r.lat||r.note||r.den||r.cap||r.tru||r.phukien); }
+function isDone(r){ return !!(r.lat||r.d1||r.d2||r.nhacho||r.vitri||r.loaitru||r.prio||r.note||(r.photos&&r.photos.length)); }
+function photoCell(c){
+  const l=(c.photos||[]).filter(Boolean);
+  if(!l.length) return "—";
+  return l.map((p,i)=>{
+    const href=p.url||(p.id?("https://drive.google.com/file/d/"+p.id+"/view"):"");
+    return href?('<a href="'+href+'" target="_blank">Ảnh '+(i+1)+'</a>'):('Ảnh '+(i+1)+' (chưa tải lên)');
+  }).join("<br>");
+}
 function pad(n){ return String(n).padStart(2,"0"); }
 function today(){ const d=new Date(); return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(); }
 
@@ -122,17 +132,23 @@ function render(){
       (o.total?Math.round(o.done/o.total*100):0)+'%</td></tr>';
   }).join("");
 
-  // hiện trạng chiếu sáng
-  const lightCount = {}; LIGHTS.forEach(l=>lightCount[l]=0);
-  done.forEach(r=>{ const v=rec(STORE,r.stt).light; if(v&&lightCount[v]!=null) lightCount[v]++; });
-  const lightRows = LIGHTS.map(l=>'<tr><td>'+l+'</td><td class="num">'+lightCount[l]+'</td><td class="num">'+
-    (done.length?Math.round(lightCount[l]/done.length*100):0)+'%</td></tr>').join("");
+  // bảng đếm theo một trường phân loại
+  function tally(field, opts){
+    const c = {}; opts.forEach(o=>c[o]=0);
+    done.forEach(r=>{ const v=rec(STORE,r.stt)[field]; if(v&&c[v]!=null) c[v]++; });
+    return opts.map(o=>'<tr><td>'+o+'</td><td class="num">'+c[o]+'</td><td class="num">'+
+      (done.length?Math.round(c[o]/done.length*100):0)+'%</td></tr>').join("");
+  }
+  const nhachoRows  = tally("nhacho",  NHACHOS);
+  const vitriRows   = tally("vitri",   VITRIS);
+  const loaitruRows = tally("loaitru", LOAITRUS);
+  const prioRows    = tally("prio",    PRIOS);
 
-  // đề xuất & ưu tiên
-  const cnt = c => done.filter(r=>rec(STORE,r.stt)[c]).length;
-  const prioCount = {"Cao":0,"Trung bình":0,"Thấp":0};
-  done.forEach(r=>{ const p=rec(STORE,r.stt).prio; if(p&&prioCount[p]!=null) prioCount[p]++; });
-  const prioRows = PRIOS.map(p=>'<tr><td>'+p+'</td><td class="num">'+prioCount[p]+'</td></tr>').join("");
+  // khoảng cách trung bình (chỉ tính các ô có nhập số)
+  function avg(field){
+    const xs = done.map(r=>parseFloat(String(rec(STORE,r.stt)[field]||"").replace(",","."))).filter(v=>!isNaN(v));
+    return xs.length ? (xs.reduce((a,b)=>a+b,0)/xs.length).toFixed(1)+" m (n="+xs.length+")" : "—";
+  }
 
   // bảng chi tiết theo địa bàn
   let detail=""; let curG=null;
@@ -142,20 +158,20 @@ function render(){
     if(g!==curG){ curG=g;
       detail+='<tr class="grp"><td colspan="13">'+esc(curG)+'</td></tr>'; }
     const gps = c.lat? (c.lat+", "+c.lng) : "—";
-    const prCls = c.prio==="Cao"?"pr-Cao":(c.prio==="Trung bình"?"pr-TB":(c.prio==="Thấp"?"pr-Thap":""));
+    const prCls = c.prio==="Ưu tiên 1"?"pr-Cao":(c.prio==="Ưu tiên 2"?"pr-TB":"");
     detail+='<tr>'+
       '<td class="num">'+(i+1)+'</td>'+
       '<td class="num">'+esc(r.stt)+'</td>'+
       '<td><b>'+esc(r.duong)+'</b><br>'+esc(r.sonha||"—")+'</td>'+
       '<td>'+esc(r.loai||"—")+'</td>'+
       '<td>'+esc(gps)+'</td>'+
-      '<td>'+esc(c.light||"—")+'</td>'+
-      '<td class="num">'+esc(c.power||"—")+'</td>'+
-      '<td>'+esc(c.den||"—")+'</td>'+
-      '<td>'+esc(c.cap||"—")+'</td>'+
-      '<td>'+esc(c.tru||"—")+'</td>'+
-      '<td>'+esc(c.phukien||"—")+'</td>'+
+      '<td class="num">'+esc(c.d1||"—")+'</td>'+
+      '<td class="num">'+esc(c.d2||"—")+'</td>'+
+      '<td>'+esc(c.nhacho||"—")+'</td>'+
+      '<td>'+esc(c.vitri||"—")+'</td>'+
+      '<td>'+esc(c.loaitru||"—")+'</td>'+
       '<td class="'+prCls+'">'+esc(c.prio||"—")+'</td>'+
+      '<td>'+photoCell(c)+'</td>'+
       '<td>'+esc(c.by||"—")+'</td>'+
       '</tr>';
     if(c.note){ detail+='<tr><td></td><td colspan="12"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
@@ -176,9 +192,9 @@ function render(){
     <div class="head-org">Chiếu sáng khu vực Trung Tâm</div>
     <div class="head-line"></div>
 
-    <h1>Báo cáo kết quả khảo sát hiện trạng,<br>đề xuất bổ sung chiếu sáng công cộng</h1>
-    <p class="subttl">Tại các trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý</p>
-    <p class="cancu">Căn cứ Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý — ${total} vị trí thuộc khu vực TP.HCM, Vũng Tàu và Bình Dương.</p>
+    <h1>Tổng hợp kết quả khảo sát,<br>tính toán lựa chọn bộ đèn LED</h1>
+    <p class="subttl">Tại các trạm dừng xe buýt địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh</p>
+    <p class="cancu">Căn cứ Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý — ${total} vị trí thuộc phạm vi khảo sát.</p>
     <p class="cancu" id="cDate">Ngày lập báo cáo: ${today()}</p>
 
     <h2>I. Tổng quan kết quả khảo sát</h2>
@@ -188,38 +204,50 @@ function render(){
       <div class="box"><b>${pending.length}</b><span>Chưa khảo sát</span></div>
       <div class="box"><b>${hasGps}</b><span>Có tọa độ GPS</span></div>
     </div>
-    <h3>Phân bố theo khu vực – phường/xã</h3>
+    <h3>Phân bố theo địa bàn – phường/xã</h3>
     <table>
-      <tr><th>Khu vực</th><th>Phường/Xã</th><th>Tổng</th><th>Đã KS</th><th>Chưa KS</th><th>Tỷ lệ</th></tr>
+      <tr><th>Địa bàn</th><th>Phường/Xã</th><th>Tổng</th><th>Đã KS</th><th>Chưa KS</th><th>Tỷ lệ</th></tr>
       ${dbRows}
       <tr class="grp"><td colspan="2"><b>Tổng cộng</b></td><td class="num"><b>${total}</b></td><td class="num"><b>${done.length}</b></td><td class="num"><b>${pending.length}</b></td><td class="num"><b>${total?Math.round(done.length/total*100):0}%</b></td></tr>
     </table>
 
-    <h2>II. Thống kê hiện trạng chiếu sáng</h2>
+    <h2>II. Thống kê hiện trạng trụ dừng / nhà chờ</h2>
     <p><i>(Trên ${done.length} vị trí đã khảo sát)</i></p>
+    <h3>Loại trụ dừng, nhà chờ</h3>
     <table>
-      <tr><th>Hiện trạng</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
-      ${lightRows}
+      <tr><th>Loại</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
+      ${nhachoRows}
+    </table>
+    <h3>Vị trí trụ đèn so với nhà chờ</h3>
+    <table>
+      <tr><th>Vị trí</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
+      ${vitriRows}
+    </table>
+    <h3>Loại trụ đèn hiện hữu</h3>
+    <table>
+      <tr><th>Loại trụ</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
+      ${loaitruRows}
     </table>
 
-    <h2>III. Tổng hợp đề xuất bổ sung & mức ưu tiên</h2>
-    <h3>Số vị trí có đề xuất theo hạng mục</h3>
+    <h2>III. Khoảng cách & mức ưu tiên đề xuất</h2>
     <table>
-      <tr><th>Đèn</th><th>Cáp</th><th>Trụ</th><th>Phụ kiện</th></tr>
-      <tr><td class="num">${cnt("den")}</td><td class="num">${cnt("cap")}</td><td class="num">${cnt("tru")}</td><td class="num">${cnt("phukien")}</td></tr>
+      <tr><th>Chỉ tiêu</th><th>Giá trị trung bình</th></tr>
+      <tr><td>Khoảng cách trụ đèn → trụ dừng / nhà chờ (theo hướng xe lưu thông)</td><td class="num">${avg("d1")}</td></tr>
+      <tr><td>Khoảng cách trụ dừng / nhà chờ → trụ đèn tiếp theo</td><td class="num">${avg("d2")}</td></tr>
     </table>
-    <h3>Phân loại theo mức độ ưu tiên</h3>
+    <h3>Phân loại theo mức ưu tiên đề xuất</h3>
     <table>
-      <tr><th>Mức ưu tiên</th><th>Số vị trí</th></tr>
+      <tr><th>Mức ưu tiên</th><th>Số vị trí</th><th>Tỷ lệ</th></tr>
       ${prioRows}
     </table>
 
-    <h2>IV. Bảng chi tiết các vị trí đã khảo sát</h2>
+    <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
       <tr>
         <th>TT</th><th>STT danh mục</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
-        <th>HT chiếu sáng</th><th>Nguồn điện (m)</th>
-        <th>ĐX Đèn</th><th>ĐX Cáp</th><th>ĐX Trụ</th><th>ĐX Phụ kiện</th><th>Ưu tiên</th><th>Người KS</th>
+        <th>KC trụ đèn → trụ dừng (m)</th><th>KC trụ dừng → trụ đèn kế (m)</th>
+        <th>Loại trụ dừng, nhà chờ</th><th>Vị trí trụ so với nhà chờ</th><th>Loại trụ đèn</th>
+        <th>Ưu tiên đề xuất</th><th>Ảnh hiện trường</th><th>Người KS</th>
       </tr>
       ${detail}
     </table>
@@ -231,7 +259,7 @@ function render(){
     </table>
 
     <h2>VI. Kết luận & kiến nghị</h2>
-    <textarea id="ketluan">Qua khảo sát ${done.length}/${total} vị trí, đơn vị kiến nghị bổ sung hệ thống chiếu sáng tại các vị trí còn thiếu/yếu, ưu tiên thực hiện trước các vị trí có mức ưu tiên Cao. Kính trình cấp có thẩm quyền xem xét, chấp thuận chủ trương và bố trí kinh phí thực hiện.</textarea>
+    <textarea id="ketluan">Qua khảo sát ${done.length}/${total} vị trí, đơn vị kiến nghị bổ sung bộ đèn LED chiếu sáng tại các trụ dừng / nhà chờ xe buýt còn thiếu chiếu sáng, thực hiện trước các vị trí thuộc Ưu tiên 1. Kính trình cấp có thẩm quyền xem xét, chấp thuận chủ trương và bố trí kinh phí thực hiện.</textarea>
 
     <div class="sign">
       <div>

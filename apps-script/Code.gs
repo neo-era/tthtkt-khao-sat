@@ -2,14 +2,15 @@
  * ============================================================================
  *  CHIẾU SÁNG KHU VỰC TRUNG TÂM – BACKEND GOOGLE APPS SCRIPT
  *  Web app khảo sát bổ sung chiếu sáng công cộng
- *  Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý
+ *  Trạm dừng xe buýt địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh
  * ----------------------------------------------------------------------------
  *  CÁCH CÀI ĐẶT (làm 1 lần):
  *   1. Tạo 1 Google Sheet mới (đặt tên tùy ý).
  *   2. Vào menu: Tiện ích mở rộng (Extensions) → Apps Script.
  *   3. Xóa code mẫu, dán toàn bộ nội dung file này vào, bấm Lưu.
  *   4. Trên thanh hàm, chọn "setupSheet" → Chạy (Run) để tạo tiêu đề & định dạng.
- *      (Lần đầu sẽ hỏi cấp quyền → chọn tài khoản → Advanced → Allow.)
+ *      (Lần đầu sẽ hỏi cấp quyền → chọn tài khoản → Advanced → Allow.
+ *       Script cần thêm quyền Google Drive để lưu ảnh hiện trường.)
  *   5. Bấm "Deploy" (Triển khai) → New deployment → chọn loại "Web app":
  *         - Execute as:  Me (chính bạn)
  *         - Who has access:  Anyone (Bất kỳ ai)
@@ -24,16 +25,21 @@
 // Tên sheet chứa dữ liệu khảo sát. Đổi nếu muốn.
 var SHEET_NAME = 'KhaoSat';
 
-// 19 cột app gửi lên + 1 cột thời gian server nhận = 20 cột.
+// Thư mục Google Drive chứa ảnh hiện trường (tự tạo trong Drive của tài khoản chạy script).
+var PHOTO_FOLDER = 'Anh khao sat chieu sang - Tram dung xe buyt';
+
+// 21 cột app gửi lên + 1 cột thời gian server nhận = 22 cột.
 var HEADERS = [
-  'STT', 'Khu vực', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
+  'STT', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
-  'HT chiếu sáng', 'Nguồn điện (m)',
-  'ĐX đèn', 'ĐX cáp', 'ĐX trụ', 'ĐX phụ kiện', 'Ưu tiên', 'Ghi chú khảo sát',
+  'KC trụ đèn → trụ dừng (m)', 'KC trụ dừng → trụ đèn kế (m)',
+  'Loại trụ dừng, nhà chờ', 'Vị trí trụ so với nhà chờ', 'Loại trụ đèn',
+  'Ưu tiên đề xuất', 'Ghi chú thêm',
+  'Ảnh 1', 'Ảnh 2', 'Ảnh 3',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 20
-var APP_COLS = 19;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 22
+var APP_COLS = 21;                 // số cột app gửi
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -41,6 +47,23 @@ var TZ = 'Asia/Ho_Chi_Minh';
  * Có upsert theo STT (cột 1): điểm đã có thì cập nhật, chưa có thì thêm mới.
  */
 function doPost(e) {
+  if (!e || !e.postData || !e.postData.contents) {
+    return jsonOut_({ ok: false, error: 'Không có dữ liệu gửi lên.' });
+  }
+
+  var payload;
+  try {
+    payload = JSON.parse(e.postData.contents);
+  } catch (parseErr) {
+    return jsonOut_({ ok: false, error: 'Dữ liệu gửi lên không phải JSON hợp lệ.' });
+  }
+
+  // Ảnh hiện trường: {action:'photo', stt, idx, mime, data(base64)} → lưu vào Drive, trả link.
+  // Không cần khóa vì mỗi ảnh có tên file riêng theo STT + vị trí ô ảnh.
+  if (payload && !Array.isArray(payload) && payload.action === 'photo') {
+    return savePhoto_(payload);
+  }
+
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000); // tránh ghi đè khi nhiều người đồng bộ cùng lúc
@@ -49,12 +72,7 @@ function doPost(e) {
   }
 
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return jsonOut_({ ok: false, error: 'Không có dữ liệu gửi lên.' });
-    }
-
-    var rows = JSON.parse(e.postData.contents);
-    if (!Array.isArray(rows)) rows = [rows];
+    var rows = Array.isArray(payload) ? payload : [payload];
 
     var sheet = getSheet_();
     var sttToRow = buildSttIndex_(sheet);   // { '12': 5, ... } STT -> số dòng trên sheet
@@ -63,9 +81,9 @@ function doPost(e) {
 
     rows.forEach(function (r) {
       if (!Array.isArray(r)) return;
-      r = r.slice(0, APP_COLS);              // chỉ lấy 18 cột đầu
+      r = r.slice(0, APP_COLS);              // chỉ lấy 21 cột đầu
       while (r.length < APP_COLS) r.push('');
-      r.push(now);                            // cột 19: thời gian server nhận
+      r.push(now);                            // cột 22: thời gian server nhận
 
       var stt = String(r[0]).trim();
       if (stt && sttToRow[stt]) {
@@ -146,7 +164,8 @@ function setupSheet() {
   sheet.setRowHeight(1, 40);
 
   // Độ rộng cột (đơn vị pixel)
-  var widths = [45, 90, 200, 130, 130, 110, 110, 95, 95, 95, 80, 140, 140, 140, 140, 80, 200, 120, 130, 130];
+  var widths = [45, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 200,
+                190, 190, 190, 120, 130, 130];
   widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
 
   // Định dạng vùng dữ liệu
@@ -174,6 +193,48 @@ function clearData() {
   var last = sheet.getLastRow();
   if (last > 1) sheet.getRange(2, 1, last - 1, NCOLS).clearContent();
   SpreadsheetApp.getActive().toast('Đã xóa dữ liệu, giữ lại tiêu đề.', 'Chiếu sáng khu vực Trung Tâm', 4);
+}
+
+/* ------------------------------ ẢNH HIỆN TRƯỜNG ------------------------------ */
+
+/**
+ * Lưu 1 ảnh vào thư mục Drive, đặt quyền "ai có link cũng xem được" để mở từ Sheet.
+ * Tên file cố định theo STT + ô ảnh (KS_0001_1.jpg) nên chụp lại sẽ ghi đè, không sinh rác.
+ */
+function savePhoto_(p) {
+  try {
+    var stt = String(p.stt || '').replace(/\D/g, '');
+    var idx = Number(p.idx || 0) + 1;
+    if (!stt) return jsonOut_({ ok: false, error: 'Thiếu STT của điểm khảo sát.' });
+    if (!p.data) return jsonOut_({ ok: false, error: 'Thiếu dữ liệu ảnh.' });
+
+    var name = 'KS_' + ('0000' + stt).slice(-4) + '_' + idx + '.jpg';
+    var folder = getPhotoFolder_();
+
+    // Xóa bản cũ cùng tên (nếu chụp lại ô ảnh này)
+    var old = folder.getFilesByName(name);
+    while (old.hasNext()) old.next().setTrashed(true);
+
+    var blob = Utilities.newBlob(Utilities.base64Decode(p.data), p.mime || 'image/jpeg', name);
+    var file = folder.createFile(blob);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (shareErr) { /* miền hạn chế chia sẻ ra ngoài — vẫn giữ file, link nội bộ dùng được */ }
+
+    return jsonOut_({
+      ok: true,
+      id: file.getId(),
+      url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+      name: name
+    });
+  } catch (err) {
+    return jsonOut_({ ok: false, error: String(err) });
+  }
+}
+
+function getPhotoFolder_() {
+  var it = DriveApp.getFoldersByName(PHOTO_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(PHOTO_FOLDER);
 }
 
 /* ------------------------------ HÀM PHỤ TRỢ ------------------------------ */

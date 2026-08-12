@@ -8,7 +8,10 @@ Sinh mảng RAW (danh mục vị trí khảo sát) từ file Excel nguồn và g
 Nguồn : docs/DS TRẠM DỪNG XE BUÝT.xlsx
     cột 1 STT (công thức, bỏ qua – script đánh số lại)
     cột 2 Tuyến đường | cột 3 Số nhà | cột 4 Phường/Xã | cột 5 Hạ tầng
-    dòng có cột 1 = I/II/III và cột 2 rỗng là dòng phân khu vực.
+    cột 6 mã địa bàn (Q1/Q3/Q5/Q8/Q10/Q11/PN/BT) – CHỈ có ở các quận thuộc phạm vi khảo sát.
+
+Phạm vi: chỉ lấy các dòng CÓ mã ở cột 6 (610 vị trí thuộc 8 quận). Các dòng còn lại
+(khu vực TP.HCM ngoài 8 quận, Vũng Tàu, Bình Dương) không thuộc phạm vi, bị bỏ qua.
 
 Đích  : dòng `const RAW = [...];` trong index.html (thay nguyên dòng).
 """
@@ -16,6 +19,7 @@ import io
 import json
 import os
 import re
+import unicodedata
 from collections import Counter
 
 import openpyxl
@@ -24,7 +28,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XLSX = os.path.join(ROOT, "docs", "DS TRẠM DỪNG XE BUÝT.xlsx")
 HTML = os.path.join(ROOT, "index.html")
 
-REGION = {"I": "TP.HCM", "II": "Vũng Tàu", "III": "Bình Dương"}
+# Mã địa bàn ở cột 6 -> tên hiển thị. Thứ tự dict cũng là thứ tự sắp xếp/chip lọc.
+DIABAN = {
+    "Q1": "Quận 1", "Q3": "Quận 3", "Q5": "Quận 5", "Q8": "Quận 8",
+    "Q10": "Quận 10", "Q11": "Quận 11", "PN": "Phú Nhuận", "BT": "Bình Thạnh",
+}
+
+# Dấu thanh kiểu cũ -> kiểu mới, để "Hoà Hưng" và "Hòa Hưng" không tách thành 2 phường.
+TONE = [("oà", "òa"), ("oá", "óa"), ("oả", "ỏa"), ("oã", "õa"), ("oạ", "ọa"),
+        ("oè", "òe"), ("oé", "óe"), ("oẻ", "ỏe"), ("uỳ", "ùy"), ("uý", "úy")]
 
 
 def cell(v):
@@ -32,7 +44,7 @@ def cell(v):
         return ""
     if isinstance(v, float) and v.is_integer():
         v = int(v)
-    return re.sub(r"\s+", " ", str(v)).strip()
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", str(v))).strip()
 
 
 def norm_loai(s):
@@ -43,41 +55,47 @@ def norm_loai(s):
 
 
 def norm_phuong(s):
-    return re.sub(r"^(Phường|Xã|Thị trấn)\s+", "", s).strip()
+    s = re.sub(r"^(Phường|Xã|Thị trấn)\s+", "", s).strip()
+    for a, b in TONE:
+        s = s.replace(a, b)
+    return s
 
 
 def main():
     ws = openpyxl.load_workbook(XLSX, data_only=True).active
 
     raw = []
-    region = ""
+    skipped = 0
     for r in range(5, ws.max_row + 1):
-        a, b = cell(ws.cell(r, 1).value), cell(ws.cell(r, 2).value)
-        if not b:
-            if a in REGION:
-                region = REGION[a]
+        duong = cell(ws.cell(r, 2).value)
+        if not duong:
+            continue                       # dòng tiêu đề khu vực (I / II / III)
+        ma = cell(ws.cell(r, 6).value)
+        if ma not in DIABAN:
+            skipped += 1                   # ngoài phạm vi 8 quận
             continue
         sonha = cell(ws.cell(r, 3).value)
         raw.append({
             "stt": 0,
-            "diaban": region,
-            "ten": b + (" – " + sonha if sonha else ""),
-            "duong": b,
+            "diaban": DIABAN[ma],
+            "ten": duong + (" – " + sonha if sonha else ""),
+            "duong": duong,
             "sonha": sonha,
             "phuong": norm_phuong(cell(ws.cell(r, 4).value)),
             "loai": norm_loai(cell(ws.cell(r, 5).value)),
             "ghichu": "",
         })
 
-    # Gom liền mạch theo khu vực -> phường/xã (giữ thứ tự gốc trong từng phường), rồi đánh lại STT.
-    order = list(REGION.values())
+    # Gom liền mạch theo địa bàn -> phường/xã (giữ thứ tự gốc trong từng phường), rồi đánh lại STT.
+    order = list(DIABAN.values())
     raw.sort(key=lambda x: (order.index(x["diaban"]), x["phuong"]))
     for i, x in enumerate(raw):
         x["stt"] = i + 1
 
-    print("Số vị trí :", len(raw))
-    print("Khu vực   :", dict(Counter(x["diaban"] for x in raw)))
-    print("Phường/xã :", len(set(x["phuong"] for x in raw)))
+    print("Số vị trí   :", len(raw), "(bỏ qua", skipped, "vị trí ngoài phạm vi)")
+    print("Địa bàn     :", dict(Counter(x["diaban"] for x in raw)))
+    print("Phường/xã   :", len(set(x["phuong"] for x in raw)))
+    print("Hạ tầng     :", dict(Counter(x["loai"] for x in raw)))
 
     line = "const RAW = " + json.dumps(raw, ensure_ascii=False) + ";"
     with io.open(HTML, encoding="utf-8") as f:
