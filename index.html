@@ -144,13 +144,7 @@
   .sheet p{margin:0 0 14px;font-size:13px;color:var(--muted)}
   .sheet .btn{width:100%;margin-bottom:9px}
   .btn-export{background:var(--green);color:#fff}
-  .btn-sync{background:var(--primary);color:#fff}
   .btn-ghost{background:var(--bg);color:var(--ink-2);border:1px solid var(--line)}
-  .syncbox{display:flex;gap:8px;margin-bottom:9px}
-  .syncbox input{flex:1}
-  details.help{margin-top:6px;font-size:12.5px;color:var(--muted)}
-  details.help summary{font-weight:700;color:var(--ink-2);cursor:pointer;padding:6px 0}
-  details.help pre{background:#0F2A43;color:#CFE3F5;padding:10px;border-radius:9px;overflow:auto;font-size:11px;line-height:1.4}
   /* ---------- toast ---------- */
   .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:11px 18px;border-radius:11px;font-size:13.5px;font-weight:600;z-index:90;
@@ -190,7 +184,7 @@
 
   <button class="fab" id="fabExport">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 3v12M12 15l-4-4M12 15l4-4M5 19h14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Xuất / Đồng bộ
+    Xuất dữ liệu
   </button>
 </div>
 
@@ -285,45 +279,11 @@
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet">
   <div class="grab"></div>
-  <h3>Xuất dữ liệu &amp; đồng bộ</h3>
+  <h3>Xuất dữ liệu &amp; báo cáo</h3>
   <p id="expSummary">—</p>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
   <a class="btn btn-ghost" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
   <button class="btn btn-export" id="btnCsv">Tải file CSV (mở bằng Excel)</button>
-
-  <div class="syncbox">
-    <input class="ctl" id="syncUrl" placeholder="Dán URL Google Apps Script (tùy chọn)">
-  </div>
-  <button class="btn btn-sync" id="btnSync">Đồng bộ lên Google Sheets</button>
-  <button class="btn btn-ghost" id="btnImport">Nhập lại dữ liệu từ file CSV</button>
-  <input id="csvIn" type="file" accept=".csv,text/csv" style="display:none">
-  <button class="btn btn-ghost" id="btnWipe" style="color:var(--red)">Xóa toàn bộ dữ liệu khảo sát</button>
-
-  <details class="help">
-    <summary>Cách tạo backend Google Sheets (1 lần)</summary>
-    <div style="margin-top:6px">
-      1. Tạo Google Sheet mới → Tiện ích mở rộng → Apps Script.<br>
-      2. Dán đoạn mã dưới, deploy dạng <b>Web app</b> (Execute as: Me; Access: Anyone).<br>
-      3. Copy URL <code>/exec</code> dán vào ô phía trên.
-      <pre>function doPost(e){
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  var rows = JSON.parse(e.postData.contents);
-  var H = ["STT","DiaBan","TenViTri","Duong","SoNha","Phuong","HaTang",
-    "ViDo","KinhDo","KC_TruDen_TruDung_m","KC_TruDung_TruKe_m",
-    "LoaiTruDungNhaCho","ViTriTruSoVoiNhaCho","LoaiTruDen",
-    "UuTien","GhiChu","Anh1","Anh2","Anh3","NguoiKS","ThoiGian"];
-  if(sh.getLastRow()===0){ sh.appendRow(H); }
-  var data = sh.getDataRange().getValues();
-  rows.forEach(function(r){
-    var row = -1;
-    for(var i=1;i&lt;data.length;i++){ if(String(data[i][0])===String(r[0])){ row=i+1; break; } }
-    if(row>0){ sh.getRange(row,1,1,r.length).setValues([r]); }
-    else { sh.appendRow(r); data.push(r); }
-  });
-  return ContentService.createTextOutput("OK");
-}</pre>
-    </div>
-  </details>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -723,7 +683,8 @@ const HEADERS=["STT","Địa bàn","Tên vị trí","Tuyến đường","Số nh
   "Ưu tiên đề xuất","Ghi chú thêm",
   "Ảnh 1","Ảnh 2","Ảnh 3","Người khảo sát","Thời gian lưu"];
 function exportCsv(){
-  const lines=[HEADERS.join(",")];
+  // Tiêu đề cũng phải qua csvCell: "Loại trụ dừng, nhà chờ" có dấu phẩy, không bọc thì lệch cột.
+  const lines=[HEADERS.map(csvCell).join(",")];
   RAW.forEach(r=>{ lines.push(rowArray(r).map(csvCell).join(",")); });
   const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -731,9 +692,10 @@ function exportCsv(){
   toast("Đã tạo file CSV.");
 }
 function csvCell(v){ v=(v==null?"":""+v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+/* URL Apps Script nhúng sẵn trong code; LS_URL chỉ dùng để đè khi cần đổi backend
+   (đặt tay qua console, app không còn ô nhập). */
 function currentSyncUrl(){
-  const ui=(document.getElementById("syncUrl").value||"").trim();
-  return ui || (localStorage.getItem(LS_URL)||"").trim() || DEFAULT_URL;
+  return (localStorage.getItem(LS_URL)||"").trim() || DEFAULT_URL;
 }
 /* Gửi dòng lên Sheets. Đọc JSON trả về để biết server có ghi được thật không —
    nếu chỉ dựa vào fetch thành công thì lỗi phía Apps Script vẫn báo "đã đồng bộ". */
@@ -750,6 +712,57 @@ function postRows(rows){
     });
 }
 function unsynced(){ return RAW.filter(r=>isDone(r.stt)&&!rec(r.stt).sync); }
+
+/* ---------- ĐỌC NGƯỢC TỪ GOOGLE SHEETS ----------
+   Nhiều cán bộ cùng khảo sát trên cùng một Sheet → máy này phải thấy được điểm
+   máy kia đã làm. Đọc ?action=data rồi trộn vào store.
+   Nguyên tắc: KHÔNG bao giờ đè lên thay đổi cục bộ chưa gửi được lên Sheets. */
+function driveIdFromUrl(u){ const m=/\/d\/([-\w]{10,})/.exec(u||""); return m?m[1]:""; }
+function pullFromSheets(silent){
+  if(!navigator.onLine) return Promise.resolve(0);
+  return fetch(currentSyncUrl()+"?action=data")
+    .then(res=>res.json())
+    .then(js=>{
+      if(!js||!js.ok||!Array.isArray(js.values)) throw new Error("Không đọc được dữ liệu từ Sheets.");
+      let n=0;
+      js.values.forEach(v=>{
+        const stt=parseInt(v[0],10); if(!stt) return;
+        const cur=rec(stt);
+        // Bản trên máy đang có sửa đổi chưa lên Sheets (hoặc ảnh chưa lên Drive) → giữ nguyên
+        if(isDone(stt) && !cur.sync) return;
+        if((cur.photos||[]).some(p=>p&&p.d&&!p.id)) return;
+
+        const ph=[];
+        [16,17,18].forEach(i=>{
+          const u=String(v[i]||"").trim();
+          if(u.indexOf("http")===0) ph.push({d:"",id:driveIdFromUrl(u),url:u});
+        });
+        const next={
+          lat:String(v[7]||""), lng:String(v[8]||""),
+          acc:cur.acc||"", gpsAt:cur.gpsAt||"",
+          d1:String(v[9]||""),  d2:String(v[10]||""),
+          nhacho:String(v[11]||""), vitri:String(v[12]||""), loaitru:String(v[13]||""),
+          prio:String(v[14]||""),   note:String(v[15]||""),
+          by:String(v[19]||""),     at:String(v[20]||""),
+          photos:ph, sync:String(v[21]||"")||"đã có trên Sheets"
+        };
+        // Dòng rỗng trên Sheet thì bỏ qua, đừng tạo bản ghi rác
+        if(!(next.lat||next.d1||next.d2||next.nhacho||next.vitri||next.loaitru||next.prio||next.note||ph.length)) return;
+        if(JSON.stringify(cur)===JSON.stringify(next)) return;   // không đổi thì thôi
+        store[stt]=next; n++;
+      });
+      if(n){ saveStore(); renderList(); updateExpSummary(); }
+      // Có thay đổi thì luôn báo (kể cả lúc chạy ngầm), không có gì mới thì im lặng
+      if(n) toast("Đã cập nhật "+n+" điểm từ Google Sheets.");
+      else if(!silent) toast("Dữ liệu đã khớp với Google Sheets.");
+      return n;
+    })
+    .catch(()=>{ if(!silent) toast("Chưa đọc được dữ liệu từ Google Sheets."); return 0; });
+}
+/* Gửi phần còn tồn lên trước, rồi đọc về để thấy phần người khác đã khảo sát */
+function syncBothWays(silent){
+  return pushPending(true).then(()=>pullFromSheets(silent));
+}
 /* Đẩy các điểm chưa lên Sheets (ảnh lên Drive trước). Dùng khi có mạng trở lại. */
 function pushPending(silent){
   const list=unsynced();
@@ -760,50 +773,6 @@ function pushPending(silent){
     .then(()=>postRows(list.map(rowArray)))
     .then(()=>{ renderList(); updateExpSummary(); toast("Đã đồng bộ "+list.length+" điểm lên Google Sheets."); return list.length; })
     .catch(()=>{ if(!silent) toast("Chưa gửi được. Sẽ tự gửi lại khi có mạng."); return 0; });
-}
-function syncSheets(){
-  const url=currentSyncUrl();
-  if(!url){ toast("Hãy dán URL Apps Script trước."); return; }
-  localStorage.setItem(LS_URL,url);
-  const done=RAW.filter(r=>isDone(r.stt));
-  if(!done.length){ toast("Chưa có điểm nào được khảo sát."); return; }
-  const btn=document.getElementById("btnSync");
-  const npend=pendingPhotos();
-  btn.textContent = npend ? ("Đang tải "+npend+" ảnh lên Drive…") : "Đang đồng bộ…";
-  // Ảnh lên Drive trước, rồi mới gửi dòng dữ liệu (đã kèm link ảnh) lên Sheet.
-  done.reduce((chain,r)=>chain.then(()=>uploadPhotosFor(r.stt)), Promise.resolve())
-    .then(()=>{ btn.textContent="Đang đồng bộ…"; return postRows(done.map(rowArray)); })
-    .then(()=>{ toast("Đã đồng bộ "+done.length+" điểm"+(npend?" và "+npend+" ảnh":"")+" lên Google."); renderList(); updateExpSummary(); })
-    .catch(()=>{ toast("Không kết nối được. Kiểm tra URL & mạng."); })
-    .finally(()=>{ btn.textContent="Đồng bộ lên Google Sheets"; });
-}
-function importCsv(e){
-  const f=e.target.files[0]; if(!f) return;
-  const rd=new FileReader();
-  rd.onload=()=>{
-    try{
-      const rows=parseCsv(rd.result); let n=0;
-      rows.slice(1).forEach(c=>{
-        const stt=parseInt(c[0]); if(!stt) return;
-        store[stt]=Object.assign(rec(stt),{
-          lat:c[7]||"",lng:c[8]||"",d1:c[9]||"",d2:c[10]||"",
-          nhacho:c[11]||"",vitri:c[12]||"",loaitru:c[13]||"",
-          prio:c[14]||"",note:c[15]||"",by:c[19]||"",at:c[20]||""
-        }); n++;   // cột 17-19 là link ảnh — chỉ xuất ra, không nhập ngược lại
-      });
-      saveStore(); renderList(); updateExpSummary(); toast("Đã nhập "+n+" dòng từ CSV.");
-    }catch(err){ toast("File CSV không hợp lệ."); }
-  };
-  rd.readAsText(f);
-}
-function parseCsv(t){
-  const rows=[];let row=[],cell="",q=false;
-  for(let i=0;i<t.length;i++){const ch=t[i];
-    if(q){ if(ch=='"'){ if(t[i+1]=='"'){cell+='"';i++;} else q=false; } else cell+=ch; }
-    else{ if(ch=='"')q=true; else if(ch==',' ){row.push(cell);cell="";}
-      else if(ch=='\n'){row.push(cell);rows.push(row);row=[];cell="";}
-      else if(ch=='\r'){} else cell+=ch; } }
-  if(cell.length||row.length){row.push(cell);rows.push(row);} return rows;
 }
 function updateExpSummary(){
   let done=0; RAW.forEach(r=>{ if(isDone(r.stt))done++; });
@@ -821,8 +790,12 @@ function pad4(n){ return String(n).padStart(4,"0"); }
 let toastT;
 function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show");
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
-function openSheet(){ updateExpSummary(); document.getElementById("scrim").classList.add("show");
-  document.getElementById("sheet").classList.add("show"); }
+function openSheet(){
+  updateExpSummary();
+  document.getElementById("scrim").classList.add("show");
+  document.getElementById("sheet").classList.add("show");
+  syncBothWays(false);   // không còn nút đồng bộ tay → mở bảng này là dịp gửi đi & đọc về
+}
 function closeSheet(){ document.getElementById("scrim").classList.remove("show");
   document.getElementById("sheet").classList.remove("show"); }
 
@@ -841,18 +814,14 @@ document.getElementById("btnReset").onclick=()=>{ if(confirm("Xóa dữ liệu k
 document.getElementById("fabExport").onclick=openSheet;
 document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("btnCsv").onclick=exportCsv;
-document.getElementById("btnSync").onclick=syncSheets;
-document.getElementById("btnImport").onclick=()=>document.getElementById("csvIn").click();
-document.getElementById("csvIn").addEventListener("change",importCsv);
-document.getElementById("btnWipe").onclick=()=>{ if(confirm("Xóa TOÀN BỘ dữ liệu khảo sát trên thiết bị này?")){ store={}; saveStore(); renderList(); updateExpSummary(); closeSheet(); toast("Đã xóa toàn bộ dữ liệu."); } };
-document.getElementById("syncUrl").value=localStorage.getItem(LS_URL)||DEFAULT_URL;
 
 try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
 renderChips(); renderWards(); renderList();
 
-/* Có mạng trở lại (hoặc vừa mở app) → tự gửi nốt các điểm còn tồn lên Sheets */
-window.addEventListener("online", ()=>pushPending(false));
-if(navigator.onLine && unsynced().length) setTimeout(()=>pushPending(true), 1500);
+/* Có mạng trở lại hoặc vừa mở app → gửi nốt phần còn tồn, rồi đọc về trạng thái
+   mới nhất trên Sheets (để thấy các điểm cán bộ khác đã khảo sát). */
+window.addEventListener("online", ()=>syncBothWays(false));
+if(navigator.onLine) setTimeout(()=>syncBothWays(true), 1200);
 </script>
 </body>
 </html>

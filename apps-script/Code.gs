@@ -122,15 +122,19 @@ function doGet(e) {
   var sheet = getSheet_();
   var action = (e && e.parameter && e.parameter.action) || 'status';
 
+  // Trả head + values (mảng theo đúng thứ tự cột) để app đọc theo VỊ TRÍ cột,
+  // không phụ thuộc chữ tiêu đề — đổi chữ tiêu đề không làm hỏng đồng bộ ngược.
   if (action === 'data') {
     var values = sheet.getDataRange().getValues();
     var head = values.shift() || [];
-    var out = values.map(function (row) {
-      var o = {};
-      head.forEach(function (h, i) { o[h] = row[i]; });
-      return o;
+    return jsonOut_({
+      ok: true,
+      count: values.length,
+      head: head,
+      values: values.map(function (row) {
+        return row.map(function (v) { return v === null || v === undefined ? '' : String(v); });
+      })
     });
-    return jsonOut_({ ok: true, count: out.length, rows: out });
   }
 
   return jsonOut_({

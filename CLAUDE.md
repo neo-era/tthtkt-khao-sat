@@ -26,7 +26,8 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **21 cột** theo `rowArray()`; backend thêm cột 22 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI cả `rowArray`/`HEADERS` trong `index.html`, `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`, đoạn mẫu `doPost` trong phần trợ giúp, và `importCsv` (chỉ số cột).
+- **Số cột phải khớp**: app gửi đúng **21 cột** theo `rowArray()`; backend thêm cột 22 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **Tiêu đề CSV phải qua `csvCell`**: `HEADERS` có ô chứa dấu phẩy ("Loại trụ dừng, nhà chờ"), `HEADERS.join(",")` trần sẽ làm hàng tiêu đề nhiều hơn hàng dữ liệu 1 cột và lệch toàn bộ khi mở bằng Excel.
 
 ## Schema dữ liệu
 
@@ -60,7 +61,17 @@ Cột 17–19 là **link Drive**, chỉ xuất ra — `importCsv` bỏ qua (khô
 - URL Apps Script được nhúng sẵn (`DEFAULT_URL` trong index.html); ô nhập URL pre-fill bằng URL này.
 - Mỗi lần bấm **Lưu khảo sát điểm này** → ngoài lưu localStorage còn **tải ảnh chưa lên Drive trước**, rồi mới POST dòng dữ liệu (đã kèm link ảnh) lên Sheets, nếu `navigator.onLine`. Offline thì lưu máy, đồng bộ sau ở mục Xuất/Đồng bộ (nút đó cũng tải ảnh tồn trước rồi mới gửi dòng).
 - **`postRows` phải đọc JSON trả về và ném lỗi khi `ok === false`.** Chỉ dựa vào `fetch` thành công là sai: Apps Script trả HTTP 200 kèm `{ok:false}` khi lỗi (khóa bận, sai schema…), app sẽ báo "đã đồng bộ" trong khi Sheet trống. Đánh dấu `sync` chỉ diễn ra sau khi đã qua kiểm tra này.
-- **Tự gửi lại**: `pushPending()` chạy khi có sự kiện `online` và một lần lúc mở app (nếu còn điểm tồn). Không có hàng đợi riêng — `unsynced()` suy ra từ `sync` rỗng nên không bao giờ lệch trạng thái.
+- **Đồng bộ hai chiều** (`syncBothWays`): gửi phần còn tồn (`pushPending`) rồi đọc về (`pullFromSheets`). Chạy khi có sự kiện `online`, một lần lúc mở app, và mỗi lần mở bảng Xuất dữ liệu. Không có hàng đợi riêng — `unsynced()` suy ra từ `sync` rỗng nên không bao giờ lệch trạng thái.
+
+### Đọc ngược từ Sheets (`pullFromSheets`)
+Nhiều cán bộ dùng chung một Sheet → máy này phải thấy điểm máy kia đã khảo sát. Đọc `?action=data`, trộn vào `store` theo **vị trí cột** (`values` + `head` do `doGet` trả về dạng mảng, không phải object) — đổi chữ tiêu đề trên Sheet cũng không làm hỏng.
+
+Hai luật **không được phá**, nếu không sẽ mất dữ liệu hiện trường:
+1. Bản ghi cục bộ `isDone` mà `sync` rỗng = có sửa đổi chưa lên Sheets → **bỏ qua, không đè**.
+2. Bản ghi còn ảnh `d` chưa có `id` (chưa lên Drive) → **bỏ qua**, vì Sheet chỉ có link, đè vào là mất ảnh.
+
+Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác), và bản ghi không đổi thì không ghi lại (so bằng `JSON.stringify`) để khỏi báo nhầm "đã cập nhật".
+- **App không còn nút đồng bộ tay / nhập CSV / xóa toàn bộ / ô nhập URL** (bỏ theo yêu cầu 12/8/2026 để màn hình gọn cho cán bộ hiện trường). Hệ quả: `currentSyncUrl()` chỉ đọc `LS_URL` rồi `DEFAULT_URL`; muốn đổi backend phải sửa `DEFAULT_URL` trong code hoặc set `LS_URL` qua console. Đường thoát duy nhất khi Sheets hỏng là **Tải file CSV**.
 
 ### Ảnh trên Google Drive
 - Cùng một Web App URL, phân biệt bằng nội dung POST: mảng → ghi Sheet; object `{action:'photo', stt, idx, mime, data}` → `savePhoto_` lưu Drive.
@@ -70,7 +81,7 @@ Cột 17–19 là **link Drive**, chỉ xuất ra — `importCsv` bỏ qua (khô
 
 ### Các key localStorage
 - `lavipco_ks_data_v3` — toàn bộ bản ghi khảo sát. Khóa `_v1` (danh mục 107 vị trí) và `_v2` (bộ trường chiếu sáng cũ) còn nằm trong localStorage nhưng không dùng — cả STT lẫn tên trường đều không tương ứng.
-- `lavipco_ks_url_v1`  — URL Apps Script đã lưu.
+- `lavipco_ks_url_v1`  — URL Apps Script đè `DEFAULT_URL` (không còn UI để đặt, chỉ set qua console).
 - `lavipco_ks_by`      — tên người khảo sát gần nhất (điền sẵn).
 - `lavipco_ks_raw_v1`  — bản sao danh mục `RAW` do `index.html` ghi mỗi lần mở; `baocao.html` đọc lại để dựng báo cáo mà không cần nhúng lại RAW.
 

@@ -67,11 +67,11 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
    - **Execute as**: `Me`
    - **Who has access**: `Anyone`
    - → **Deploy** → **copy đường link kết thúc bằng `/exec`**.
-6. Mở app khảo sát trên điện thoại → bấm **Xuất / Đồng bộ** → dán link `/exec` vào ô **URL Google Apps Script** → bấm **Đồng bộ lên Google Sheets**.
+6. Dán link `/exec` vào hằng số **`DEFAULT_URL`** trong `index.html` (app không còn ô nhập URL), rồi commit lại.
 
 > Mỗi khi sửa `Code.gs`, phải **Deploy lại**: *Manage deployments → Edit (bút chì) → Version: New version → Deploy*. URL giữ nguyên.
 
-**Kiểm tra nhanh:** mở link `/exec` trên trình duyệt sẽ thấy JSON trạng thái. Thêm `?action=data` vào cuối để xem toàn bộ dữ liệu đã đồng bộ.
+**Kiểm tra nhanh:** mở link `/exec` trên trình duyệt sẽ thấy JSON trạng thái. Thêm `?action=data` vào cuối để xem toàn bộ dữ liệu đã đồng bộ (đây cũng chính là đường app dùng để đọc ngược trạng thái về máy).
 
 ---
 
@@ -83,7 +83,7 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
    - **Bấm Định vị trước khi chụp ảnh** — ảnh được đóng dấu tọa độ ngay lúc chụp, chưa có tọa độ thì trên ảnh ghi "chưa lấy được".
 4. Dữ liệu được **lưu ngay trên điện thoại** (đóng app mở lại không mất). Có mạng thì ảnh tự lên **Google Drive** trước, rồi dòng dữ liệu kèm link ảnh lên **Google Sheets**. Mỗi ảnh cũng tự lưu một bản về bộ nhớ máy.
 5. Thẻ trong danh sách hiện **Đã lên Sheets** (xanh) hay **Chưa đồng bộ** (vàng) để biết điểm nào đã tới bảng tính.
-6. Khi mất mạng lúc lưu: app **tự gửi lại khi có mạng trở lại** (và một lần nữa lúc mở app). Muốn gửi ngay thì vào **Xuất / Đồng bộ** → **Đồng bộ lên Google Sheets**, hoặc **Tải CSV** để mở bằng Excel.
+6. Khi mất mạng lúc lưu: **không phải làm gì cả** — app tự gửi lại khi có mạng trở lại, khi mở app, và mỗi lần mở bảng **Xuất dữ liệu**.
 
 ---
 
@@ -107,8 +107,10 @@ Ngay lúc chụp, app vẽ đè lên góc dưới ảnh: **địa chỉ điểm*
 **Nhiều cán bộ cùng khảo sát?**
 Mỗi người mở cùng một link, đồng bộ về **cùng một Google Sheet**. Backend có khóa (LockService) chống ghi đè khi đồng bộ đồng thời.
 
+App còn **đọc ngược từ Sheet** nên máy này thấy được điểm người khác đã làm: mỗi lần mở app, khi có mạng trở lại, và khi mở bảng **Xuất dữ liệu**. Điểm nào máy anh đang sửa mà chưa gửi lên được thì **không bị đè** — bản trên máy luôn được ưu tiên cho tới khi gửi thành công.
+
 **Muốn nhập liệu trên máy tính?**
-Xuất CSV từ app (đủ 610 dòng, có BOM nên Excel đọc đúng dấu), nhập liệu rồi dùng **Nhập lại dữ liệu từ file CSV**. Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
+Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngược từ CSV. CSV chỉ để **xuất** ra xem/lưu trữ (đủ 610 dòng, có BOM nên Excel đọc đúng dấu). Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
 
 **Dữ liệu khảo sát cũ còn không?**
 Không dùng nữa. Danh mục đánh lại STT và bộ trường khảo sát cũng đổi theo bảng chọn bộ đèn LED, nên app chuyển sang khóa lưu `lavipco_ks_data_v3`. Bản ghi cũ vẫn nằm trong `localStorage` ở `lavipco_ks_data_v1` / `_v2` (không bị xóa) nếu cần tra lại.
