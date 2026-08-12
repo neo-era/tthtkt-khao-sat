@@ -23,6 +23,7 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 
 ## RÀNG BUỘC BẮT BUỘC (đừng phá vỡ)
 
+- **Báo phiên bản mới**: `checkNewVersion()` gửi `HEAD index.html` (`cache:'no-store'`) rồi so `ETag`/`Last-Modified` với lần đầu trong phiên; khác nhau = đã deploy bản mới → hiện thanh `#updBar`. Dùng **HEAD** có chủ đích: nó không đi qua service worker (SW chỉ chặn GET) và không tải lại 160KB HTML. Cơ chế này **tự phát hiện mọi lần deploy, không cần bump gì cả**. Bấm Cập nhật mới `location.reload()` — tuyệt đối không tự tải lại, vì sẽ mất phần cán bộ đang gõ dở; nếu màn chi tiết đang mở thì `confirm()` cảnh báo trước.
 - **`sw.js` dùng network-first, KHÔNG đổi sang cache-first.** App là 1 file HTML nhúng sẵn 610 vị trí và được sửa/deploy liên tục; ưu tiên cache là cán bộ kẹt ở bản cũ mà không hay. Sửa `sw.js` phải **tăng `VERSION`** để cache cũ bị dọn. Request khác origin (Apps Script, Drive) và mọi POST **không được đi qua cache**.
 - **Không thêm dependency ngoài.** App phải chạy offline ngoài hiện trường → không thêm `<script src>` từ CDN, không npm, không framework. Mọi thứ inline trong `index.html`. (Trang dashboard bản đồ tương lai nếu dùng Leaflet thì để **trang riêng**, không nhét vào app khảo sát chính.)
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.

@@ -99,6 +99,8 @@ App là **Progressive Web App**: cài xong có biểu tượng riêng, mở toà
 
 **Cập nhật phiên bản:** `sw.js` dùng chiến lược *mạng trước, cache dự phòng* — mỗi lần mở app có mạng là tự lấy bản mới nhất từ GitHub Pages, không cần gỡ cài lại. Mất sóng thì dùng bản đã lưu.
 
+Nếu app đang mở sẵn cả ngày, cứ 20 phút (và mỗi lần quay lại app / có mạng trở lại) nó tự kiểm tra; có bản mới thì hiện **thanh xanh ở đầu màn hình** với nút **Cập nhật** / **Để sau**. App **không bao giờ tự tải lại** — bấm Cập nhật mới tải, và nếu đang mở dở một điểm khảo sát thì hỏi lại trước vì phần chưa bấm Lưu sẽ mất.
+
 **Khi sửa code:** nhớ tăng `VERSION` trong `sw.js` (`ks-v1` → `ks-v2`…) để cache cũ được dọn sạch.
 
 > PWA **chỉ hoạt động qua `https://`**. Mở file `index.html` trực tiếp từ ổ đĩa thì không cài được, không cache được — giống như GPS và camera.
