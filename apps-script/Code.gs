@@ -1,8 +1,8 @@
 /**
  * ============================================================================
  *  CHIẾU SÁNG KHU VỰC TRUNG TÂM – BACKEND GOOGLE APPS SCRIPT
- *  Web app khảo sát bổ sung chiếu sáng công cộng (Phụ lục 107 vị trí)
- *  CV số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026
+ *  Web app khảo sát bổ sung chiếu sáng công cộng
+ *  Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý
  * ----------------------------------------------------------------------------
  *  CÁCH CÀI ĐẶT (làm 1 lần):
  *   1. Tạo 1 Google Sheet mới (đặt tên tùy ý).
@@ -26,8 +26,8 @@ var SHEET_NAME = 'KhaoSat';
 
 // 19 cột app gửi lên + 1 cột thời gian server nhận = 20 cột.
 var HEADERS = [
-  'STT', 'Mã điểm dừng', 'Tên điểm dừng', 'Tuyến đường', 'Số nhà/Vị trí',
-  'Phường/Xã', 'Loại kết cấu', 'Vĩ độ', 'Kinh độ',
+  'STT', 'Khu vực', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
+  'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
   'HT chiếu sáng', 'Nguồn điện (m)',
   'ĐX đèn', 'ĐX cáp', 'ĐX trụ', 'ĐX phụ kiện', 'Ưu tiên', 'Ghi chú khảo sát',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'

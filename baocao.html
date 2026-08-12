@@ -84,7 +84,7 @@ const LIGHTS = ["Đầy đủ","Thiếu/Yếu","Hư hỏng","Không có"];
 const PRIOS  = ["Cao","Trung bình","Thấp"];
 
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
-function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v1"))||{}; }catch(e){ return {}; } }
+function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v2"))||{}; }catch(e){ return {}; } }
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 function rec(store,stt){ return store[stt]||{}; }
 function isDone(r){ return !!(r.light||r.lat||r.note||r.den||r.cap||r.tru||r.phukien); }
@@ -97,7 +97,7 @@ const STORE = loadStore();
 if(!RAW.length){
   document.getElementById("root").innerHTML =
     '<div class="notice"><h2 style="border:0">Chưa có dữ liệu danh mục</h2>'+
-    '<p>Hãy mở <a href="index.html">app khảo sát</a> trước (ít nhất một lần) để nạp danh mục 107 vị trí, rồi quay lại trang báo cáo này.</p></div>';
+    '<p>Hãy mở <a href="index.html">app khảo sát</a> trước (ít nhất một lần) để nạp danh mục vị trí, rồi quay lại trang báo cáo này.</p></div>';
 } else {
   render();
 }
@@ -108,15 +108,16 @@ function render(){
   const pending = RAW.filter(r=>!isDone(rec(STORE,r.stt)));
   const hasGps = done.filter(r=>rec(STORE,r.stt).lat).length;
 
-  // theo địa bàn
-  const dbMap = {};
+  // theo khu vực – phường/xã
+  const dbMap = {}; const dbOrder = [];
   RAW.forEach(r=>{
-    const k=r.diaban||"(Khác)";
-    if(!dbMap[k]) dbMap[k]={total:0,done:0};
+    const k=(r.diaban||"(Khác)")+"|"+(r.phuong||"(Khác)");
+    if(!dbMap[k]){ dbMap[k]={total:0,done:0}; dbOrder.push(k); }
     dbMap[k].total++; if(isDone(rec(STORE,r.stt))) dbMap[k].done++;
   });
-  const dbRows = Object.keys(dbMap).map(k=>{
-    const o=dbMap[k]; return '<tr><td>'+esc(k)+'</td><td class="num">'+o.total+'</td><td class="num">'+
+  const dbRows = dbOrder.map(k=>{
+    const o=dbMap[k], p=k.split("|");
+    return '<tr><td>'+esc(p[0])+'</td><td>'+esc(p[1])+'</td><td class="num">'+o.total+'</td><td class="num">'+
       o.done+'</td><td class="num">'+(o.total-o.done)+'</td><td class="num">'+
       (o.total?Math.round(o.done/o.total*100):0)+'%</td></tr>';
   }).join("");
@@ -137,14 +138,15 @@ function render(){
   let detail=""; let curG=null;
   done.forEach((r,i)=>{
     const c=rec(STORE,r.stt);
-    if(r.diaban!==curG){ curG=r.diaban;
+    const g=r.phuong+" · "+r.diaban;
+    if(g!==curG){ curG=g;
       detail+='<tr class="grp"><td colspan="13">'+esc(curG)+'</td></tr>'; }
     const gps = c.lat? (c.lat+", "+c.lng) : "—";
     const prCls = c.prio==="Cao"?"pr-Cao":(c.prio==="Trung bình"?"pr-TB":(c.prio==="Thấp"?"pr-Thap":""));
     detail+='<tr>'+
       '<td class="num">'+(i+1)+'</td>'+
-      '<td>'+esc(r.ma)+'</td>'+
-      '<td><b>'+esc(r.ten)+'</b><br>'+esc(r.duong)+(r.sonha?" "+esc(r.sonha):"")+'</td>'+
+      '<td class="num">'+esc(r.stt)+'</td>'+
+      '<td><b>'+esc(r.duong)+'</b><br>'+esc(r.sonha||"—")+'</td>'+
       '<td>'+esc(r.loai||"—")+'</td>'+
       '<td>'+esc(gps)+'</td>'+
       '<td>'+esc(c.light||"—")+'</td>'+
@@ -161,9 +163,12 @@ function render(){
   if(!done.length) detail='<tr><td colspan="13" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
 
   // phụ lục chưa khảo sát
+  const PEND_MAX=500;
   let pendRows="";
-  pending.forEach((r,i)=>{ pendRows+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.diaban)+'</td><td>'+
-    esc(r.ma)+'</td><td>'+esc(r.ten)+'</td><td>'+esc(r.duong)+(r.sonha?" "+esc(r.sonha):"")+'</td></tr>'; });
+  pending.slice(0,PEND_MAX).forEach((r,i)=>{ pendRows+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.diaban)+'</td><td>'+
+    esc(r.phuong)+'</td><td>'+esc(r.duong)+'</td><td>'+esc(r.sonha||"—")+'</td></tr>'; });
+  if(pending.length>PEND_MAX) pendRows+='<tr><td colspan="5"><i>… và '+(pending.length-PEND_MAX)+
+    ' vị trí khác chưa khảo sát (xem đầy đủ trong file CSV xuất từ app).</i></td></tr>';
   if(!pending.length) pendRows='<tr><td colspan="5" class="num">Đã khảo sát toàn bộ vị trí.</td></tr>';
 
   document.getElementById("root").innerHTML = `
@@ -172,8 +177,8 @@ function render(){
     <div class="head-line"></div>
 
     <h1>Báo cáo kết quả khảo sát hiện trạng,<br>đề xuất bổ sung chiếu sáng công cộng</h1>
-    <p class="subttl">Tại các vị trí trụ dừng / nhà chờ xe buýt khu vực trung tâm TP. Hồ Chí Minh</p>
-    <p class="cancu">Căn cứ Công văn số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026 của Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) và Phụ lục danh mục 107 vị trí kèm theo.</p>
+    <p class="subttl">Tại các trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng quản lý</p>
+    <p class="cancu">Căn cứ Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý — ${total} vị trí thuộc khu vực TP.HCM, Vũng Tàu và Bình Dương.</p>
     <p class="cancu" id="cDate">Ngày lập báo cáo: ${today()}</p>
 
     <h2>I. Tổng quan kết quả khảo sát</h2>
@@ -183,11 +188,11 @@ function render(){
       <div class="box"><b>${pending.length}</b><span>Chưa khảo sát</span></div>
       <div class="box"><b>${hasGps}</b><span>Có tọa độ GPS</span></div>
     </div>
-    <h3>Phân bố theo địa bàn</h3>
+    <h3>Phân bố theo khu vực – phường/xã</h3>
     <table>
-      <tr><th>Địa bàn</th><th>Tổng</th><th>Đã KS</th><th>Chưa KS</th><th>Tỷ lệ</th></tr>
+      <tr><th>Khu vực</th><th>Phường/Xã</th><th>Tổng</th><th>Đã KS</th><th>Chưa KS</th><th>Tỷ lệ</th></tr>
       ${dbRows}
-      <tr class="grp"><td><b>Tổng cộng</b></td><td class="num"><b>${total}</b></td><td class="num"><b>${done.length}</b></td><td class="num"><b>${pending.length}</b></td><td class="num"><b>${total?Math.round(done.length/total*100):0}%</b></td></tr>
+      <tr class="grp"><td colspan="2"><b>Tổng cộng</b></td><td class="num"><b>${total}</b></td><td class="num"><b>${done.length}</b></td><td class="num"><b>${pending.length}</b></td><td class="num"><b>${total?Math.round(done.length/total*100):0}%</b></td></tr>
     </table>
 
     <h2>II. Thống kê hiện trạng chiếu sáng</h2>
@@ -212,7 +217,7 @@ function render(){
     <h2>IV. Bảng chi tiết các vị trí đã khảo sát</h2>
     <table class="detail">
       <tr>
-        <th>STT</th><th>Mã</th><th>Tên / Địa chỉ</th><th>Loại kết cấu</th><th>Tọa độ GPS</th>
+        <th>TT</th><th>STT danh mục</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
         <th>HT chiếu sáng</th><th>Nguồn điện (m)</th>
         <th>ĐX Đèn</th><th>ĐX Cáp</th><th>ĐX Trụ</th><th>ĐX Phụ kiện</th><th>Ưu tiên</th><th>Người KS</th>
       </tr>
@@ -221,7 +226,7 @@ function render(){
 
     <h2>V. Phụ lục: Vị trí chưa khảo sát</h2>
     <table>
-      <tr><th>STT</th><th>Địa bàn</th><th>Mã</th><th>Tên điểm</th><th>Địa chỉ</th></tr>
+      <tr><th>TT</th><th>Khu vực</th><th>Phường/Xã</th><th>Tuyến đường</th><th>Số nhà/Vị trí</th></tr>
       ${pendRows}
     </table>
 

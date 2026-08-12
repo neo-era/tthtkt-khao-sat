@@ -1,8 +1,8 @@
 # Khảo sát chiếu sáng khu vực Trung Tâm
 
-Ứng dụng web khảo sát hiện trường (chạy trên điện thoại) để rà soát, đề xuất **bổ sung hệ thống chiếu sáng công cộng** tại **107 vị trí** trụ dừng / nhà chờ xe buýt và khu vực người đi bộ thuộc khu vực trung tâm TP. Hồ Chí Minh.
+Ứng dụng web khảo sát hiện trường (chạy trên điện thoại) để rà soát, đề xuất **bổ sung hệ thống chiếu sáng công cộng** tại **3.754 trạm dừng xe buýt** do Trung tâm Quản lý Giao thông công cộng quản lý (TP.HCM 3.146 · Vũng Tàu 347 · Bình Dương 261).
 
-> Căn cứ: Công văn số 3471/TTGTHTKT-CXCS1 ngày 22/6/2026 và Phụ lục danh mục 107 vị trí của Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM).
+> Nguồn danh mục: `docs/DS TRẠM DỪNG XE BUÝT.xlsx` — Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý.
 
 ---
 
@@ -10,9 +10,10 @@
 
 | Thành phần | Tập tin | Công dụng |
 |---|---|---|
-| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 107 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất CSV, đồng bộ. |
+| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 3.754 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất CSV, đồng bộ. |
 | **Backend Google Sheets** | `apps-script/Code.gs` | Nhận dữ liệu từ app, lưu vào Google Sheet (có chống trùng theo STT). |
-| **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | Phiếu khảo sát giấy/Excel để in hoặc nhập liệu trên máy tính. |
+| **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc; chạy `tools/build_raw.py` để nạp lại vào `index.html`. |
+| **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | ⚠️ Phiếu Excel cũ, **vẫn theo danh mục 107 vị trí đã bỏ** — cần dựng lại nếu còn dùng. |
 | Manifest + icon | `manifest.json`, `icons/` | Cho phép "Thêm vào màn hình chính" như một app thật. |
 
 Toàn bộ app là **một file HTML duy nhất, không phụ thuộc thư viện ngoài**, nên chạy được cả khi mất mạng ngoài hiện trường.
@@ -76,7 +77,7 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 ## 4. Cách sử dụng ngoài hiện trường
 
 1. Mở app (nên **Thêm vào màn hình chính** để dùng như app: trình duyệt → menu → *Add to Home Screen*).
-2. Màn hình danh sách: tìm/lọc theo quận hoặc trạng thái, xem tiến độ X/107 ở trên cùng.
+2. Màn hình danh sách: lọc theo khu vực (chip), chọn **phường/xã** ở ô bên dưới, lọc trạng thái hoặc gõ tìm kiếm; xem tiến độ X/3754 ở trên cùng. Danh sách nạp dần 200 vị trí mỗi lần (nút **Xem thêm**).
 3. Chạm một vị trí → bấm **Định vị** để lấy tọa độ GPS, chọn hiện trạng chiếu sáng, nhập đề xuất bổ sung (Đèn / Cáp / Trụ / Phụ kiện), mức ưu tiên, chụp ảnh, ghi chú → **Lưu khảo sát điểm này**.
 4. Dữ liệu được **lưu ngay trên điện thoại** (đóng app mở lại không mất) và **tự đồng bộ lên Google Sheets** nếu có mạng. Ảnh chụp được tự lưu một bản về bộ nhớ máy.
 5. Khi mất mạng lúc lưu: vào **Xuất / Đồng bộ** → **Đồng bộ lên Google Sheets** khi có mạng, hoặc **Tải CSV** để mở bằng Excel.
@@ -98,7 +99,10 @@ Do ảnh chụp tích nhiều. Hãy **Đồng bộ** hoặc **Tải CSV** rồi 
 Mỗi người mở cùng một link, đồng bộ về **cùng một Google Sheet**. Backend có khóa (LockService) chống ghi đè khi đồng bộ đồng thời.
 
 **Muốn nhập liệu trên máy tính?**
-Dùng `docs/Bieu_mau_khao_sat_...xlsx` (đã nạp sẵn 107 vị trí, có ô chọn nhanh và bảng tổng hợp tự động).
+Xuất CSV từ app (đủ 3.754 dòng, có BOM nên Excel đọc đúng dấu), nhập liệu rồi dùng **Nhập lại dữ liệu từ file CSV**. Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
+
+**Dữ liệu khảo sát cũ (107 vị trí) còn không?**
+Không dùng nữa: STT của danh mục mới đánh lại từ đầu nên app chuyển sang khóa lưu `lavipco_ks_data_v2`. Bản ghi cũ vẫn nằm trong `localStorage` ở khóa `lavipco_ks_data_v1` (không bị xóa) nếu cần tra lại.
 
 ---
 
@@ -108,7 +112,7 @@ Dùng `docs/Bieu_mau_khao_sat_...xlsx` (đã nạp sẵn 107 vị trí, có ô c
 chieu-sang-trung-tam/
 ├── index.html              # Web app khảo sát (đặt ở gốc để GitHub Pages chạy)
 ├── huongdan.html           # Trang hướng dẫn sử dụng
-├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF) theo CV 3471
+├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF)
 ├── manifest.json           # Cấu hình "thêm vào màn hình chính"
 ├── .nojekyll               # Tắt xử lý Jekyll của GitHub Pages
 ├── icons/
@@ -116,8 +120,11 @@ chieu-sang-trung-tam/
 │   └── icon-512.png
 ├── apps-script/
 │   └── Code.gs             # Backend Google Apps Script
+├── tools/
+│   └── build_raw.py        # Nạp danh mục từ Excel vào index.html
 └── docs/
-    └── Bieu_mau_khao_sat_chieu_sang_mang_xanh_v1.0.xlsx
+    ├── DS TRẠM DỪNG XE BUÝT.xlsx                       # Danh mục nguồn (3.754 vị trí)
+    └── Bieu_mau_khao_sat_chieu_sang_mang_xanh_v1.0.xlsx # Biểu mẫu cũ (danh mục 107 vị trí)
 ```
 
 ---
