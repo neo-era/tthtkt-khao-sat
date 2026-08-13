@@ -76,7 +76,17 @@ Hai luật **không được phá**, nếu không sẽ mất dữ liệu hiện 
 **Xóa theo Sheet**: dòng bị xóa trên Sheet thì bản ghi tương ứng trên máy cũng bị xóa (nếu không, app cứ báo "Đã lên Sheets" cho dữ liệu không còn tồn tại). Áp dụng đúng hai luật trên: chỉ xóa bản ghi **đã từng được Sheets xác nhận** (`sync` có giá trị) và **không còn ảnh chờ lên Drive** — bản ghi chưa gửi được thì đương nhiên vắng mặt trên Sheet, xóa là mất công khảo sát. Nếu Sheet trả về **0 dòng** (có thể do đổi tên sheet / sai URL chứ không phải người dùng thật sự xóa) thì `confirm()` hỏi trước khi dọn.
 
 Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác), và bản ghi không đổi thì không ghi lại (so bằng `JSON.stringify`) để khỏi báo nhầm "đã cập nhật".
-- **App không còn nút đồng bộ tay / nhập CSV / xóa toàn bộ / ô nhập URL** (bỏ theo yêu cầu 12/8/2026 để màn hình gọn cho cán bộ hiện trường). Hệ quả: `currentSyncUrl()` chỉ đọc `LS_URL` rồi `DEFAULT_URL`; muốn đổi backend phải sửa `DEFAULT_URL` trong code hoặc set `LS_URL` qua console. Đường thoát duy nhất khi Sheets hỏng là **Tải file CSV**.
+- **App không còn nút đồng bộ tay / nhập CSV / xóa toàn bộ / ô nhập URL** (bỏ theo yêu cầu 12/8/2026 để màn hình gọn cho cán bộ hiện trường). Hệ quả: `currentSyncUrl()` chỉ đọc `LS_URL` rồi `DEFAULT_URL`; muốn đổi backend phải sửa `DEFAULT_URL` trong code hoặc set `LS_URL` qua console. Đường thoát khi Sheets hỏng là **Tải dữ liệu Excel** (hoặc **Tải file CSV** dự phòng).
+
+### Xuất Excel (`exportXlsx` trong `index.html`)
+File `.xlsx` thật (không phải CSV đổi đuôi), đóng gói tay vì luật cấm dependency:
+- `.xlsx` = file ZIP chứa 6 file XML. `zipStore()` ghi ZIP **kiểu store (không nén)** — file ~520KB cho 610 dòng thay vì ~60KB, đổi lại không phải viết bộ nén DEFLATE. Có `crc32` tự tính; sai CRC là Excel báo hỏng file.
+- Mốc thời gian trong ZIP **cố định 01/01/2020**, không lấy `new Date()`: cùng dữ liệu thì ra file giống hệt nhau và không lệch theo múi giờ máy.
+- Chuỗi phải qua `xmlEsc` (kể cả `"` và `'`) và **lọc ký tự điều khiển** — ghi chú hiện trường có ký tự lạ là Excel từ chối mở cả file.
+- Cột STT / vĩ độ / kinh độ / hai cột khoảng cách lưu **dạng số** (`COT_SO`), nhưng chỉ khi `soThuan()` xác nhận cả ô là số. `soThuan` đổi `6,5` → `6.5` (bàn phím tiếng Việt) nhưng `khoảng 20` thì vẫn để dạng chữ — đừng thay bằng `parseFloat` trần, nó biến `6,5` thành `6`.
+- Trong `styles.xml`, **hai fill đầu bắt buộc là `none` + `gray125`** theo quy định của Excel; chèn màu vào vị trí 0 hoặc 1 là hỏng toàn bộ định dạng.
+- Dùng `t="inlineStr"` nên không cần `sharedStrings.xml`. Đổi sang shared strings chỉ đáng khi cần nén.
+- Xuất **toàn bộ 610 dòng** như CSV, không chỉ điểm đã khảo sát.
 
 ### Ảnh trên Google Drive
 - Cùng một Web App URL, phân biệt bằng nội dung POST: mảng → ghi Sheet; object `{action:'photo', stt, idx, mime, data}` → `savePhoto_` lưu Drive. Chiều đọc: `doGet` có `?action=img&id=` trả ảnh dạng base64 cho trang báo cáo nhúng vào file Word.
@@ -157,5 +167,4 @@ Chi tiết đầy đủ trong `README.md`.
 
 - Trang `map.html` riêng: đọc `?action=data` từ Apps Script, vẽ 610 điểm lên Leaflet + OSM, lọc theo trạng thái/ưu tiên.
 - Dựng lại biểu mẫu Excel theo danh mục mới (610 vị trí).
-- Nút xuất Excel (.xlsx) trực tiếp từ app thay vì CSV.
 - Báo cáo tổng hợp tự động theo địa bàn.

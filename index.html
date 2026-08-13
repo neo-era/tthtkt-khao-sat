@@ -306,7 +306,8 @@
   <button class="btn btn-export" id="btnInstall" style="display:none">⬇️ Cài app vào máy</button>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
   <a class="btn btn-ghost" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
-  <button class="btn btn-export" id="btnCsv">Tải file CSV (mở bằng Excel)</button>
+  <button class="btn btn-export" id="btnXlsx">📊 Tải dữ liệu Excel (.xlsx)</button>
+  <button class="btn btn-ghost" id="btnCsv">Tải file CSV (dự phòng)</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -715,6 +716,172 @@ function exportCsv(){
   toast("Đã tạo file CSV.");
 }
 function csvCell(v){ v=(v==null?"":""+v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+
+/* ---------- XUẤT FILE EXCEL (.xlsx) ----------
+   .xlsx thực chất là file ZIP chứa vài file XML. Không được thêm thư viện ngoài
+   nên tự đóng gói: ZIP ghi kiểu "store" (không nén) — file to hơn vài trăm KB
+   nhưng Excel đọc bình thường, còn tự nén DEFLATE thì phải viết cả bộ nén.
+
+   Vì sao không dùng CSV cho xong: CSV mở ra là mọi thứ đều là chữ, số bị hiểu
+   sai, cột dính nhau, phải căn tay lại từ đầu. File .xlsx này có sẵn kiểu số,
+   cố định hàng tiêu đề, lọc theo cột, độ rộng cột và font Times New Roman. */
+
+/* --- CRC32 + ZIP tối giản --- */
+let crcBang=null;
+function crcTable(){
+  if(crcBang) return crcBang;
+  crcBang=new Int32Array(256);
+  for(let i=0;i<256;i++){ let c=i;
+    for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);
+    crcBang[i]=c; }
+  return crcBang;
+}
+function crc32(b){
+  const t=crcTable(); let c=-1;
+  for(let i=0;i<b.length;i++) c=t[(c^b[i])&0xFF]^(c>>>8);
+  return (c^-1)>>>0;
+}
+function zipStore(files){
+  const enc=new TextEncoder(), cuc=[], tt=[]; let off=0;
+  // Mốc thời gian cố định 01/01/2020: cùng dữ liệu thì ra file giống hệt nhau,
+  // và không lệch theo múi giờ của máy.
+  const gio=0, ngay=((2020-1980)<<9)|(1<<5)|1;
+  files.forEach(f=>{
+    const ten=enc.encode(f.name), n=f.data.length, crc=crc32(f.data);
+    const h=new Uint8Array(30+ten.length), hv=new DataView(h.buffer);
+    hv.setUint32(0,0x04034b50,true); hv.setUint16(4,20,true);
+    hv.setUint16(6,0x0800,true);          // cờ: tên file mã UTF-8
+    hv.setUint16(8,0,true);               // phương thức 0 = store
+    hv.setUint16(10,gio,true); hv.setUint16(12,ngay,true);
+    hv.setUint32(14,crc,true); hv.setUint32(18,n,true); hv.setUint32(22,n,true);
+    hv.setUint16(26,ten.length,true);
+    h.set(ten,30);
+    cuc.push(h,f.data);
+
+    const c=new Uint8Array(46+ten.length), cv=new DataView(c.buffer);
+    cv.setUint32(0,0x02014b50,true); cv.setUint16(4,20,true); cv.setUint16(6,20,true);
+    cv.setUint16(8,0x0800,true); cv.setUint16(10,0,true);
+    cv.setUint16(12,gio,true); cv.setUint16(14,ngay,true);
+    cv.setUint32(16,crc,true); cv.setUint32(20,n,true); cv.setUint32(24,n,true);
+    cv.setUint16(28,ten.length,true);
+    cv.setUint32(42,off,true);            // vị trí header cục bộ của file này
+    c.set(ten,46);
+    tt.push(c);
+    off+=h.length+n;
+  });
+  const cd=tt.reduce((s,x)=>s+x.length,0);
+  const end=new Uint8Array(22), ev=new DataView(end.buffer);
+  ev.setUint32(0,0x06054b50,true);
+  ev.setUint16(8,files.length,true); ev.setUint16(10,files.length,true);
+  ev.setUint32(12,cd,true); ev.setUint32(16,off,true);
+  return new Blob(cuc.concat(tt,[end]),
+    {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+/* --- dựng nội dung XML --- */
+function xmlEsc(s){
+  return (s==null?"":""+s)
+    .replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]))
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"");   // ký tự điều khiển không hợp lệ trong XML
+}
+function colChu(n){ let s=""; while(n>0){ const r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=(n-r-1)/26; } return s; }
+/* Trả về chuỗi số hợp lệ, hoặc null nếu ô không phải số thuần.
+   Nhận cả "6,5" (bàn phím tiếng Việt) nhưng "khoảng 6" thì vẫn để dạng chữ. */
+function soThuan(v){
+  const s=String(v==null?"":v).trim().replace(",",".");
+  return /^-?\d+(\.\d+)?$/.test(s) ? s : null;
+}
+const COT_SO={1:1,8:1,9:1,10:1,11:1};   // STT, vĩ độ, kinh độ, 2 cột khoảng cách
+const RONG_COT=[6,13,26,20,18,15,17,12,12,15,15,21,19,16,13,28,26,26,26,17,18];
+
+function exportXlsx(){
+  try{
+    const enc=new TextEncoder(), nC=HEADERS.length;
+    const P=(name,xml)=>({name:name, data:enc.encode(xml)});
+    const NS="http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+    const NSR="http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    const dau='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+
+    let sd='<row r="1" ht="34" customHeight="1">';
+    HEADERS.forEach((h,i)=>{ sd+='<c r="'+colChu(i+1)+'1" s="1" t="inlineStr"><is><t>'+xmlEsc(h)+'</t></is></c>'; });
+    sd+='</row>';
+    RAW.forEach((r,i)=>{
+      const hang=i+2, v=rowArray(r);
+      sd+='<row r="'+hang+'">';
+      for(let j=0;j<nC;j++){
+        const ref=colChu(j+1)+hang, o=v[j];
+        const so=COT_SO[j+1] ? soThuan(o) : null;
+        if(so!==null) sd+='<c r="'+ref+'" s="2"><v>'+so+'</v></c>';
+        else if(o===""||o==null) sd+='<c r="'+ref+'" s="2"/>';
+        else sd+='<c r="'+ref+'" s="2" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(o)+'</t></is></c>';
+      }
+      sd+='</row>';
+    });
+
+    const cuoi=colChu(nC), soHang=RAW.length+1;
+    const sheet=dau+'<worksheet xmlns="'+NS+'">'+
+      '<dimension ref="A1:'+cuoi+soHang+'"/>'+
+      '<sheetViews><sheetView tabSelected="1" workbookViewId="0">'+
+      '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>'+   // cố định hàng tiêu đề
+      '</sheetView></sheetViews>'+
+      '<sheetFormatPr defaultRowHeight="15"/>'+
+      '<cols>'+RONG_COT.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join("")+'</cols>'+
+      '<sheetData>'+sd+'</sheetData>'+
+      '<autoFilter ref="A1:'+cuoi+'1"/>'+
+      '</worksheet>';
+
+    /* styles.xml: hai fill đầu BẮT BUỘC là none + gray125, Excel quy định vậy. */
+    const styles=dau+'<styleSheet xmlns="'+NS+'">'+
+      '<fonts count="2">'+
+        '<font><sz val="11"/><name val="Times New Roman"/></font>'+
+        '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Times New Roman"/></font>'+
+      '</fonts>'+
+      '<fills count="3">'+
+        '<fill><patternFill patternType="none"/></fill>'+
+        '<fill><patternFill patternType="gray125"/></fill>'+
+        '<fill><patternFill patternType="solid"><fgColor rgb="FF0F2A43"/><bgColor indexed="64"/></patternFill></fill>'+
+      '</fills>'+
+      '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'+
+        '<border>'+["left","right","top","bottom"].map(x=>'<'+x+' style="thin"><color rgb="FFC9D4DF"/></'+x+'>').join("")+
+        '<diagonal/></border></borders>'+
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+      '<cellXfs count="3">'+
+        '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="0"/>'+
+        '<xf xfId="0" numFmtId="0" fontId="1" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'+
+          '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>'+
+        '<xf xfId="0" numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1" applyAlignment="1">'+
+          '<alignment vertical="top" wrapText="1"/></xf>'+
+      '</cellXfs></styleSheet>';
+
+    const OPC="http://schemas.openxmlformats.org/package/2006/relationships";
+    const blob=zipStore([
+      P("[Content_Types].xml", dau+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+        '<Default Extension="xml" ContentType="application/xml"/>'+
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'+
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+        '</Types>'),
+      P("_rels/.rels", dau+'<Relationships xmlns="'+OPC+'">'+
+        '<Relationship Id="rId1" Type="'+NSR+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+      P("xl/workbook.xml", dau+'<workbook xmlns="'+NS+'" xmlns:r="'+NSR+'">'+
+        '<sheets><sheet name="Khảo sát" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+      P("xl/_rels/workbook.xml.rels", dau+'<Relationships xmlns="'+OPC+'">'+
+        '<Relationship Id="rId1" Type="'+NSR+'/worksheet" Target="worksheets/sheet1.xml"/>'+
+        '<Relationship Id="rId2" Type="'+NSR+'/styles" Target="styles.xml"/></Relationships>'),
+      P("xl/styles.xml", styles),
+      P("xl/worksheets/sheet1.xml", sheet)
+    ]);
+
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download="Khao_sat_chieu_sang_tram_dung_xe_buyt_"+stamp()+".xlsx"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    toast("Đã tạo file Excel — "+RAW.length+" dòng.");
+  }catch(err){
+    toast("Không tạo được file Excel.");
+    alert("Không tạo được file Excel: "+err+"\n\nHãy dùng nút Tải file CSV thay thế.");
+  }
+}
 /* URL Apps Script nhúng sẵn trong code; LS_URL chỉ dùng để đè khi cần đổi backend
    (đặt tay qua console, app không còn ô nhập). */
 function currentSyncUrl(){
@@ -862,6 +1029,7 @@ document.getElementById("btnReset").onclick=()=>{ if(confirm("Xóa dữ liệu k
 document.getElementById("fabExport").onclick=openSheet;
 document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("btnCsv").onclick=exportCsv;
+document.getElementById("btnXlsx").onclick=exportXlsx;
 
 try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
 /* baocao.html cần URL backend để tải ảnh Drive về nhúng vào file Word (Drive không

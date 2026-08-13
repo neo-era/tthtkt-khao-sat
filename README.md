@@ -10,7 +10,7 @@
 
 | Thành phần | Tập tin | Công dụng |
 |---|---|---|
-| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 610 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất CSV, đồng bộ. |
+| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 610 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất Excel/CSV, đồng bộ. |
 | **Backend Google Sheets** | `apps-script/Code.gs` | Nhận dữ liệu từ app, lưu vào Google Sheet (có chống trùng theo STT). |
 | **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc (3.754 dòng); `tools/build_raw.py` lọc ra 610 vị trí trong phạm vi và nạp vào `index.html`. |
 | **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | ⚠️ Phiếu Excel cũ, **vẫn theo danh mục 107 vị trí đã bỏ** — cần dựng lại nếu còn dùng. |
@@ -151,7 +151,14 @@ Mỗi người mở cùng một link, đồng bộ về **cùng một Google She
 App còn **đọc ngược từ Sheet** nên máy này thấy được điểm người khác đã làm: mỗi lần mở app, khi có mạng trở lại, và khi mở bảng **Xuất dữ liệu**. Điểm nào máy anh đang sửa mà chưa gửi lên được thì **không bị đè** — bản trên máy luôn được ưu tiên cho tới khi gửi thành công.
 
 **Muốn nhập liệu trên máy tính?**
-Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngược từ CSV. CSV chỉ để **xuất** ra xem/lưu trữ (đủ 610 dòng, có BOM nên Excel đọc đúng dấu). Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
+Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngược từ file. Excel/CSV chỉ để **xuất** ra xem/lưu trữ (đủ 610 dòng). Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
+
+**Tải dữ liệu ra Excel?**
+Bấm **📊 Tải dữ liệu Excel (.xlsx)** trong bảng *Xuất dữ liệu*. Đây là file Excel thật, không phải CSV đổi đuôi: font Times New Roman, cố định hàng tiêu đề, có nút lọc trên từng cột, độ rộng cột đặt sẵn, và **tọa độ / khoảng cách lưu dạng số** nên tính trung bình, sắp xếp, vẽ biểu đồ được ngay.
+
+Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. File xuất đủ **610 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
+
+> Nút **Tải file CSV** vẫn còn làm bản dự phòng, dùng khi máy không mở được `.xlsx`.
 
 **Dữ liệu khảo sát cũ còn không?**
 Không dùng nữa. Danh mục đánh lại STT và bộ trường khảo sát cũng đổi theo bảng chọn bộ đèn LED, nên app chuyển sang khóa lưu `lavipco_ks_data_v3`. Bản ghi cũ vẫn nằm trong `localStorage` ở `lavipco_ks_data_v1` / `_v2` (không bị xóa) nếu cần tra lại.
