@@ -864,6 +864,10 @@ document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("btnCsv").onclick=exportCsv;
 
 try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
+/* baocao.html cần URL backend để tải ảnh Drive về nhúng vào file Word (Drive không
+   cho JS đọc trực tiếp). Ghi lại mỗi lần mở app, cùng cách chia sẻ RAW ở trên —
+   không dùng chung LS_URL vì key đó là bản đè tay, ghi vào sẽ khóa cứng DEFAULT_URL. */
+try{ localStorage.setItem("lavipco_ks_url_run", currentSyncUrl()); }catch(e){}
 renderChips(); renderWards(); renderList();
 
 /* Có mạng trở lại hoặc vừa mở app → gửi nốt phần còn tồn, rồi đọc về trạng thái

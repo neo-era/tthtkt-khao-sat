@@ -71,7 +71,7 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 
 > Mỗi khi sửa `Code.gs`, phải **Deploy lại**: *Manage deployments → Edit (bút chì) → Version: New version → Deploy*. URL giữ nguyên.
 
-**Kiểm tra nhanh:** mở link `/exec` trên trình duyệt sẽ thấy JSON trạng thái. Thêm `?action=data` vào cuối để xem toàn bộ dữ liệu đã đồng bộ (đây cũng chính là đường app dùng để đọc ngược trạng thái về máy).
+**Kiểm tra nhanh:** mở link `/exec` trên trình duyệt sẽ thấy JSON trạng thái. Thêm `?action=data` vào cuối để xem toàn bộ dữ liệu đã đồng bộ (đây cũng chính là đường app dùng để đọc ngược trạng thái về máy). Còn `?action=img&id=<ID file trên Drive>` trả về một tấm ảnh dạng base64 — trang báo cáo dùng nó để nhúng ảnh vào file Word, vì trình duyệt không đọc thẳng file Drive được.
 
 ---
 
@@ -129,6 +129,15 @@ Có. Cột *Ảnh hiện trường* trong bảng chi tiết hiện ảnh thu nh�
 
 > Ảnh đã lên Drive được nạp trực tiếp từ Drive, nên **lúc in phải có mạng**. Ảnh nào Drive chặn chia sẻ sẽ hiện dòng cảnh báo thay vì ô trống.
 
+**Xuất báo cáo ra file Word?**
+Bấm **📄 Xuất Word** trên thanh công cụ trang báo cáo. File `.doc` tải về mở thẳng bằng Microsoft Word, sửa chữ được như tài liệu bình thường: font Times New Roman, khổ A4, mục **IV** tự xoay ngang cho vừa bảng 13 cột.
+
+Ảnh nằm **bên trong file**, không phải link — gửi cho người khác hay mở lại lúc mất mạng vẫn thấy ảnh. Đổi lại, lúc bấm xuất phải có mạng để app tải ảnh từ Drive về (nút hiện *Đang lấy ảnh n/N…*).
+
+Khảo sát vài trăm điểm thì việc này mất **vài phút** và ra file **vài chục MB**, nên khi có hơn 60 ảnh app sẽ hỏi trước, kèm ước lượng thời gian và dung lượng. Cần bản nhẹ thì bỏ tick **“In kèm phụ lục ảnh”** trước khi xuất — khi đó file không kèm ảnh nào và xuất ra ngay.
+
+> Word có thể mở file ở *Protected View* vì file tải từ Internet — bấm **Enable Editing** là dùng bình thường.
+
 **Xóa dòng trên Google Sheet thì app có cập nhật theo không?**
 Có. Lần đồng bộ kế tiếp (mở app / có mạng trở lại / mở bảng **Xuất dữ liệu**) app sẽ xóa luôn bản ghi đó trên máy và điểm quay về **Chưa khảo sát**.
 
@@ -161,7 +170,7 @@ App gửi ngay khi bấm Lưu, nhưng chỉ đánh dấu **Đã lên Sheets** sa
 chieu-sang-trung-tam/
 ├── index.html              # Web app khảo sát (đặt ở gốc để GitHub Pages chạy)
 ├── huongdan.html           # Trang hướng dẫn sử dụng
-├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF)
+├── baocao.html             # Trang báo cáo kết quả (in / lưu PDF / xuất Word)
 ├── manifest.json           # Cấu hình PWA (tên, icon, shortcut)
 ├── sw.js                   # Service worker: cài app + chạy khi mất sóng
 ├── .nojekyll               # Tắt xử lý Jekyll của GitHub Pages

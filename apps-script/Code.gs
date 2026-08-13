@@ -137,6 +137,45 @@ function doGet(e) {
     });
   }
 
+  // Trả 1 ảnh dưới dạng base64 để trang báo cáo nhúng vào file Word.
+  // Trình duyệt không đọc trực tiếp được file trên Drive (không có CORS),
+  // nên phải đi vòng qua đây — Apps Script thì gọi được từ trang web.
+  if (action === 'img') {
+    var id = String((e.parameter && e.parameter.id) || '').trim();
+    var w = Number((e.parameter && e.parameter.w) || 0);
+    if (!id) return jsonOut_({ ok: false, error: 'Thiếu id ảnh.' });
+    try {
+      var blob = null;
+
+      // Có ?w= thì lấy bản thu nhỏ cho file Word nhẹ bớt (ảnh gốc ~1024px trong
+      // khi bản in chỉ rộng ~195px). UrlFetchApp gọi được link thumbnail vì chạy
+      // trên máy chủ, không vướng CORS như trình duyệt. Hỏng thì rơi về ảnh gốc.
+      if (w > 0) {
+        try {
+          var res = UrlFetchApp.fetch(
+            'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + w,
+            { muteHttpExceptions: true, followRedirects: true,
+              headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
+          if (res.getResponseCode() === 200) {
+            var tb = res.getBlob();
+            if (String(tb.getContentType()).indexOf('image/') === 0) blob = tb;
+          }
+        } catch (thumbErr) { /* dùng ảnh gốc */ }
+      }
+
+      if (!blob) blob = DriveApp.getFileById(id).getBlob();
+
+      return jsonOut_({
+        ok: true,
+        id: id,
+        mime: blob.getContentType() || 'image/jpeg',
+        data: Utilities.base64Encode(blob.getBytes())
+      });
+    } catch (imgErr) {
+      return jsonOut_({ ok: false, error: String(imgErr) });
+    }
+  }
+
   return jsonOut_({
     ok: true,
     service: 'Chiếu sáng khu vực Trung Tâm – Khảo sát chiếu sáng',

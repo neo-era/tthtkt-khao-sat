@@ -24,6 +24,8 @@
     background:#16344c;color:#fff}
   .toolbar button{background:#1565C0;color:#fff;border:0;border-radius:8px;padding:8px 16px;
     font-weight:700;font-size:13.5px;cursor:pointer}
+  .toolbar button.w{background:#2E7D32}
+  .toolbar button[disabled]{opacity:.65;cursor:default}
   .toolbar label{color:#C7D7E7;font-size:12px}
   /* ---- giấy A4 ---- */
   .page{max-width:210mm;margin:14px auto;background:#fff;padding:18mm 16mm;
@@ -92,6 +94,7 @@
   <label>Người lập</label>
   <input id="tBy" placeholder="Họ tên" size="16">
   <label><input type="checkbox" id="tAnh" checked> In kèm phụ lục ảnh</label>
+  <button class="w" id="btnWord" onclick="exportWord()">📄 Xuất Word</button>
   <button onclick="window.print()">🖨 In / Lưu PDF</button>
 </div>
 
@@ -352,6 +355,326 @@ function render(){
     document.getElementById("sBy").textContent=bEl.value||"";
   };
   dEl.addEventListener("input",sync); bEl.addEventListener("input",sync); sync();
+}
+
+/* ============================ XUẤT FILE WORD ============================
+   Không được thêm thư viện ngoài → dựng tay file MHTML (multipart/related)
+   rồi đặt đuôi .doc. Word mở thẳng, ảnh nằm luôn trong file, không cần mạng
+   lúc mở lại.
+
+   Vì sao không nhúng base64 vào thẳng <img src="data:...">: cách đó gọn hơn
+   nhiều nhưng Word bản desktop KHÔNG hiện ảnh data URI — mở ra chỉ thấy ô
+   trống. Tách ảnh thành từng phần MIME là cách duy nhất chạy được mà không
+   cần thư viện đóng gói .docx.
+
+   Word cũng không hiểu flex/grid → phải đổi các khối .kpi/.pgrid/.sign
+   sang <table> trước khi xuất. */
+
+const WORD_CSS = `
+@page WordSection1{size:21cm 29.7cm;margin:2cm 1.5cm 2cm 3cm;mso-page-orientation:portrait}
+div.WordSection1{page:WordSection1}
+@page WordSection2{size:29.7cm 21cm;margin:1.5cm 2cm 1.5cm 2cm;mso-page-orientation:landscape}
+div.WordSection2{page:WordSection2}
+@page WordSection3{size:21cm 29.7cm;margin:2cm 1.5cm 2cm 3cm;mso-page-orientation:portrait}
+div.WordSection3{page:WordSection3}
+body{font-family:"Times New Roman",serif;font-size:12pt;color:#000;margin:0}
+p{margin:3pt 0}
+i{font-style:italic}
+.head-org{text-align:center;font-weight:bold;font-size:11pt;text-transform:uppercase}
+.hline{width:4.5cm;margin:1pt auto 8pt;border-bottom:1pt solid #000000;font-size:1pt;line-height:1pt}
+h1{font-size:15pt;text-align:center;text-transform:uppercase;margin:12pt 0 4pt;line-height:1.3}
+h2{font-size:13pt;color:#0F2A43;margin:14pt 0 6pt;border-bottom:1.5pt solid #0F2A43;padding-bottom:2pt}
+h3{font-size:12pt;color:#0F2A43;margin:10pt 0 4pt}
+.subttl,.cancu{text-align:center;font-style:italic;font-size:11pt;margin:2pt 0}
+table{border-collapse:collapse;width:100%;mso-table-lspace:0pt;mso-table-rspace:0pt}
+td,th{border:0.5pt solid #999999;padding:3pt 4pt;vertical-align:top;font-size:11pt}
+th{background:#0F2A43;color:#FFFFFF;font-weight:bold;text-align:center}
+.num{text-align:center}
+.grp td{background:#E8EEF4;font-weight:bold}
+table.detail td,table.detail th{font-size:8pt;padding:2pt 3pt}
+table.kpi td{border:0.5pt solid #C9D4DF;background:#F7FAFC;text-align:center;width:25%}
+.kpin{font-size:16pt;font-weight:bold;color:#0F2A43}
+.kpil{font-size:10pt;color:#5A6B7B}
+table.pgrid td{border:0;padding:3pt;width:33%;text-align:center;vertical-align:top}
+.cap{font-size:9pt;font-style:italic;color:#5A6B7B;text-align:center}
+.pblock{margin:8pt 0 12pt}
+.pblock .hd{font-weight:bold;font-size:11pt}
+.pblock .sub{font-size:10pt;color:#5A6B7B}
+.pmiss{font-size:10pt;color:#B45309;font-style:italic}
+table.sign td{border:0;width:50%;text-align:center;vertical-align:top}
+.role{font-weight:bold}
+.hint{font-style:italic;font-size:10pt;color:#5A6B7B}
+.pr-Cao{color:#C62828;font-weight:bold}
+.pr-TB{color:#B45309;font-weight:bold}
+.pr-Thap{color:#1E8E3E;font-weight:bold}
+img{border:0.5pt solid #C9D4DF}
+`;
+
+function stampFile(){
+  const d=new Date();
+  return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes());
+}
+function b64Bytes(bytes){
+  let bin=""; const CH=0x8000;
+  for(let i=0;i<bytes.length;i+=CH) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+CH));
+  return btoa(bin);
+}
+function b64Utf8(s){ return b64Bytes(new TextEncoder().encode(s)); }
+/* MIME yêu cầu dòng base64 không quá 76 ký tự. Cắt bằng vòng lặp chứ không
+   dùng regex — file ảnh nhiều thì chuỗi lên hàng chục MB, regex toàn cục rất chậm. */
+function wrap76(s){
+  const out=[];
+  for(let i=0;i<s.length;i+=76) out.push(s.substr(i,76));
+  return out.join("\r\n");
+}
+
+/* Ảnh đã lên Drive: JS không đọc trực tiếp được (Drive không mở CORS) nên
+   thử tải thẳng một lần, hỏng thì chuyển sang lấy qua Apps Script (?action=img).
+   Nhớ kết quả lần đầu để khỏi thử lại vô ích cho hàng trăm ảnh sau. */
+let driveTrucTiep=null;
+function backendUrl(){ return (localStorage.getItem("lavipco_ks_url_run")||"").trim(); }
+async function taiAnhDrive(id){
+  if(driveTrucTiep!==false){
+    try{
+      const r=await fetch("https://drive.google.com/thumbnail?id="+encodeURIComponent(id)+"&sz=w1000");
+      if(r.ok){
+        const b=await r.blob();
+        if(b.size>0 && /^image\//.test(b.type||"")){
+          driveTrucTiep=true;
+          return {mime:b.type, b64:b64Bytes(new Uint8Array(await b.arrayBuffer()))};
+        }
+      }
+    }catch(e){ /* CORS chặn — chuyển hướng lấy qua backend */ }
+    driveTrucTiep=false;
+  }
+  const base=backendUrl();
+  if(!base) return null;
+  // w=1000: xin bản thu nhỏ cho nhẹ file. Bản Apps Script cũ chưa hiểu tham số
+  // này thì bỏ qua và trả ảnh gốc — vẫn chạy, chỉ là file nặng hơn.
+  const r=await fetch(base+"?action=img&w=1000&id="+encodeURIComponent(id));
+  const js=await r.json();
+  if(!js || !js.ok || !js.data) return null;
+  return {mime:js.mime||"image/jpeg", b64:js.data};
+}
+function taiAnhDataUrl(src){
+  const m=/^data:([^;,]+)[^,]*,(.*)$/.exec(src);
+  if(!m) return null;
+  return {mime:m[1], b64:m[2]};
+}
+function driveId(src){
+  const m=/[?&]id=([^&]+)/.exec(src||"");
+  return m?decodeURIComponent(m[1]):"";
+}
+
+/* Đổi các khối flex/grid sang bảng — Word chỉ dàn trang được bằng <table>. */
+function wordHoaBoCuc(page){
+  page.querySelectorAll(".head-line").forEach(d=>{
+    const p=document.createElement("p"); p.className="hline"; d.replaceWith(p);
+  });
+  page.querySelectorAll(".kpi").forEach(k=>{
+    const t=document.createElement("table"); t.className="kpi";
+    const tr=document.createElement("tr");
+    k.querySelectorAll(".box").forEach(b=>{
+      const td=document.createElement("td");
+      const v=b.querySelector("b"), l=b.querySelector("span");
+      td.innerHTML='<p class="kpin">'+esc(v?v.textContent:"")+'<\/p>'+
+                   '<p class="kpil">'+esc(l?l.textContent:"")+'<\/p>';
+      tr.appendChild(td);
+    });
+    t.appendChild(tr); k.replaceWith(t);
+  });
+  page.querySelectorAll(".pgrid").forEach(g=>{
+    const items=Array.prototype.slice.call(g.children);
+    const t=document.createElement("table"); t.className="pgrid";
+    for(let i=0;i<items.length;i+=3){
+      const tr=document.createElement("tr");
+      for(let j=0;j<3;j++){
+        const td=document.createElement("td");
+        if(items[i+j]) Array.prototype.slice.call(items[i+j].childNodes).forEach(n=>td.appendChild(n));
+        else td.innerHTML="&nbsp;";
+        tr.appendChild(td);
+      }
+      t.appendChild(tr);
+    }
+    g.replaceWith(t);
+  });
+  page.querySelectorAll(".sign").forEach(s=>{
+    const cells=Array.prototype.slice.call(s.children);
+    const t=document.createElement("table"); t.className="sign";
+    const tr=document.createElement("tr");
+    cells.forEach(c=>{
+      const td=document.createElement("td");
+      Array.prototype.slice.call(c.childNodes).forEach(n=>td.appendChild(n));
+      tr.appendChild(td);
+    });
+    t.appendChild(tr); s.replaceWith(t);
+  });
+  // Chừa chỗ ký: Word không giữ chiều cao của <div> rỗng, phải dùng dòng trống.
+  page.querySelectorAll(".space").forEach(d=>{ d.innerHTML="<p>&nbsp;<\/p><p>&nbsp;<\/p><p>&nbsp;<\/p>"; });
+  // Ô kết luận là <textarea> — nội dung đang gõ không nằm trong DOM đã nhân bản.
+  const kl=page.querySelector("#ketluan");
+  if(kl){
+    const live=document.getElementById("ketluan");
+    const p=document.createElement("p");
+    p.textContent=live?live.value:kl.textContent;
+    kl.replaceWith(p);
+  }
+}
+
+/* Bảng chi tiết 13 cột không đọc nổi trên khổ dọc → cắt riêng thành một
+   section ngang. Word đổi hướng giấy theo từng div.WordSectionN. */
+function catSection(page){
+  const s=[document.createElement("div"),document.createElement("div"),document.createElement("div")];
+  s[0].className="WordSection1"; s[1].className="WordSection2"; s[2].className="WordSection3";
+  let cur=0;
+  Array.prototype.slice.call(page.childNodes).forEach(n=>{
+    if(n.nodeType===1 && n.tagName==="H2"){
+      const t=n.textContent.trim();
+      if(t.indexOf("IV.")===0) cur=1;
+      else if(t.indexOf("V.")===0) cur=2;
+    }
+    s[cur].appendChild(n);
+  });
+  return s.map(d=>d.outerHTML).join("");
+}
+
+async function exportWord(){
+  const page0=document.querySelector(".page");
+  if(!page0){ alert("Chưa có dữ liệu để xuất. Hãy mở app khảo sát trước."); return; }
+  const btn=document.getElementById("btnWord");
+  const nhan=btn.textContent;
+  btn.disabled=true;
+  try{
+    const coAnh=document.getElementById("tAnh").checked;
+    const page=page0.cloneNode(true);
+
+    if(!coAnh){
+      const sec=page.querySelector("#anh"); if(sec) sec.remove();
+      // Bỏ luôn ảnh nhỏ trong bảng chi tiết: không in phụ lục nghĩa là muốn file nhẹ.
+      page.querySelectorAll(".thumbs").forEach(t=>{
+        const n=t.querySelectorAll("img").length;
+        const p=document.createElement("span"); p.textContent=n?(n+" ảnh"):"—";
+        t.replaceWith(p);
+      });
+    }
+
+    /* Lập danh sách ảnh cần lấy. Mỗi tấm chỉ tải 1 lần dù xuất hiện cả ở bảng
+       chi tiết lẫn phụ lục — khóa theo file ID chứ không theo URL, vì hai chỗ
+       gọi Drive với sz khác nhau. Đếm tiến độ cũng theo số ảnh THẬT phải tải,
+       không theo số thẻ <img> (784 thẻ nhưng chỉ ~392 tấm). */
+    const imgs=Array.prototype.slice.call(page.querySelectorAll("img"));
+    const khoaCua=im=>{
+      const src=im.getAttribute("src")||"";
+      return (/^data:/.test(src) ? "" : driveId(src)) || src;
+    };
+    const khoa=[], nguon={};
+    imgs.forEach(im=>{
+      const src=im.getAttribute("src")||"";
+      const k=khoaCua(im);
+      if(!(k in nguon)){ nguon[k]={id:/^data:/.test(src)?"":driveId(src), src:src}; khoa.push(k); }
+    });
+    const nDrive=khoa.filter(k=>nguon[k].id).length;
+
+    // Vài trăm ảnh thì tải lâu và file rất nặng — báo trước để khỏi ngồi chờ mù.
+    if(khoa.length>60 && !confirm(
+        "Báo cáo có "+khoa.length+" ảnh"+(nDrive?(" (trong đó "+nDrive+" ảnh phải tải từ Google Drive)"):"")+".\n\n"+
+        "Dự kiến mất khoảng "+Math.max(1,Math.ceil(nDrive/240))+"–"+Math.max(2,Math.ceil(nDrive/60))+" phút, "+
+        "file nặng cỡ "+Math.round(khoa.length*0.06)+"–"+Math.round(khoa.length*0.15)+" MB. "+
+        "File càng nặng thì Word mở càng chậm.\n\n"+
+        "Bấm OK để tiếp tục xuất kèm ảnh.\n"+
+        "Bấm Cancel để dừng — muốn bản nhẹ thì bỏ tick “In kèm phụ lục ảnh” rồi xuất lại.")) return;
+
+    const media=[], tenFile={};
+    let hong=0, xong=0;
+    async function layMot(k,i){
+      const o=nguon[k];
+      let a=null;
+      try{ a = o.id ? await taiAnhDrive(o.id) : taiAnhDataUrl(o.src); }catch(e){ a=null; }
+      if(a){
+        const n="image"+("000"+(i+1)).slice(-3)+(/png/.test(a.mime)?".png":".jpg");
+        tenFile[k]=n;
+        media.push({name:n, mime:a.mime, b64:a.b64});
+      }else{ tenFile[k]=null; hong++; }
+      btn.textContent="Đang lấy ảnh "+(++xong)+"/"+khoa.length+"…";
+    }
+
+    /* Tải song song, nếu không thì hàng trăm ảnh mỗi tấm chờ 1 lượt đi–về sẽ
+       mất cả chục phút. Nhưng tấm đầu tiên có ảnh Drive phải chạy MỘT MÌNH để
+       dò xem Drive có cho đọc thẳng không (driveTrucTiep) — bung song song ngay
+       thì 5 luồng cùng dò, cùng hỏng, cùng gọi lại backend. */
+    let kt=0;
+    while(kt<khoa.length && driveTrucTiep===null){ await layMot(khoa[kt],kt); kt++; }
+    const CUNG_LUC=5;   // đủ nhanh mà không dội quá nhiều yêu cầu vào Apps Script
+    await Promise.all(Array.from({length:Math.min(CUNG_LUC,Math.max(0,khoa.length-kt))},
+      async ()=>{ while(kt<khoa.length){ const i=kt++; await layMot(khoa[i],i); } }));
+
+    imgs.forEach(im=>{
+      const n=tenFile[khoaCua(im)];
+      if(n){
+        const rong=im.closest(".thumbs")?45:195;
+        im.setAttribute("src",n);
+        im.setAttribute("width",rong);
+        im.removeAttribute("data-fallback");
+        im.setAttribute("style","width:"+rong+"px");
+      }else{
+        const d=document.createElement("p"); d.className="pmiss";
+        d.textContent="Không lấy được ảnh (cần mạng và quyền chia sẻ trên Drive)";
+        im.replaceWith(d);
+      }
+    });
+
+    btn.textContent="Đang dựng file…";
+    wordHoaBoCuc(page);
+    const than=catSection(page);
+    const tieude="Bao cao ket qua khao sat chieu sang tram dung xe buyt";
+    /* CẢNH BÁO — chuỗi HTML dưới đây nằm ngay trong khối script của chính trang
+       này, nên KHÔNG được viết trần hai thứ:
+         1. thẻ đóng: phải viết "<\/div>" thay vì "</div>";
+         2. dấu mở/đóng chú thích HTML: phải nối chuỗi ("<!"+"--" và "--"+">").
+       Viết trần thì bộ phân tích HTML cắt khối script ngay tại đó: phần code còn
+       lại đổ ra màn hình thành một mảng chữ và cả trang báo cáo chết theo.
+       Ngay cả trong chú thích JS như đoạn này cũng không được viết trần.
+       ("<\/" trong chuỗi JS vẫn cho ra đúng ký tự cần, file Word không đổi.) */
+    const dkWord = "<!"+"--[if gte mso 9]><xml><w:WordDocument>"+
+      "<w:View>Print<\/w:View><w:Zoom>100<\/w:Zoom><w:DoNotOptimizeForBrowser/>"+
+      "<\/w:WordDocument><\/xml><![endif]--"+">";
+    const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" '+
+      'xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
+      '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">'+
+      '<title>'+esc(tieude)+'<\/title>'+dkWord+
+      '<style>'+WORD_CSS+'<\/style><\/head><body lang="VI">'+than+'<\/body><\/html>';
+
+    // Gói MHTML: phần HTML + từng ảnh là một phần MIME riêng, nối với nhau
+    // qua Content-Location (src trong HTML phải trùng tên file ở đây).
+    const B="----=_NextPart_KS_CSTT_01", BASE="file:///C:/khaosat/";
+    const parts=["MIME-Version: 1.0\r\n"+
+      'Content-Type: multipart/related; type="text/html"; boundary="'+B+'"\r\n\r\n'+
+      "--"+B+"\r\nContent-Location: "+BASE+"baocao.htm\r\n"+
+      'Content-Type: text/html; charset="utf-8"\r\n'+
+      "Content-Transfer-Encoding: base64\r\n\r\n"+wrap76(b64Utf8(html))+"\r\n\r\n"];
+    media.forEach(m=>{
+      parts.push("--"+B+"\r\nContent-Location: "+BASE+m.name+"\r\n"+
+        "Content-Type: "+m.mime+"\r\n"+
+        "Content-Transfer-Encoding: base64\r\n\r\n"+wrap76(m.b64)+"\r\n\r\n");
+    });
+    parts.push("--"+B+"--\r\n");
+
+    const blob=new Blob(parts,{type:"application/msword"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="Bao_cao_khao_sat_chieu_sang_tram_dung_xe_buyt_"+stampFile()+".doc";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+
+    const mb=(blob.size/1048576).toFixed(1);
+    alert("Đã tạo file Word ("+mb+" MB, "+media.length+" ảnh)."+
+      (hong?("\n\n"+hong+" ảnh không lấy được — kiểm tra mạng, hoặc quyền chia sẻ file trên Drive."):"")+
+      "\n\nMở bằng Microsoft Word. Nếu Word hỏi \"chế độ xem được bảo vệ\" thì bấm Cho phép chỉnh sửa.");
+  }catch(err){
+    alert("Không xuất được file Word: "+err);
+  }finally{
+    btn.disabled=false; btn.textContent=nhan;
+  }
 }
 </script>
 </body>

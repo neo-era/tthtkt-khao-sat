@@ -79,7 +79,7 @@ Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác),
 - **App không còn nút đồng bộ tay / nhập CSV / xóa toàn bộ / ô nhập URL** (bỏ theo yêu cầu 12/8/2026 để màn hình gọn cho cán bộ hiện trường). Hệ quả: `currentSyncUrl()` chỉ đọc `LS_URL` rồi `DEFAULT_URL`; muốn đổi backend phải sửa `DEFAULT_URL` trong code hoặc set `LS_URL` qua console. Đường thoát duy nhất khi Sheets hỏng là **Tải file CSV**.
 
 ### Ảnh trên Google Drive
-- Cùng một Web App URL, phân biệt bằng nội dung POST: mảng → ghi Sheet; object `{action:'photo', stt, idx, mime, data}` → `savePhoto_` lưu Drive.
+- Cùng một Web App URL, phân biệt bằng nội dung POST: mảng → ghi Sheet; object `{action:'photo', stt, idx, mime, data}` → `savePhoto_` lưu Drive. Chiều đọc: `doGet` có `?action=img&id=` trả ảnh dạng base64 cho trang báo cáo nhúng vào file Word.
 - Thư mục `PHOTO_FOLDER` trong `Code.gs`, tự tạo lần đầu. Tên file **cố định** `KS_<stt 4 số>_<ô ảnh>.jpg` → chụp lại thì ghi đè, không sinh rác; nhờ vậy tra bằng `getFilesByName` nên không phải quét cả thư mục.
 - File được `setSharing(ANYONE_WITH_LINK, VIEW)` để link trong Sheet mở được. Nếu tổ chức chặn chia sẻ ra ngoài thì lệnh này nuốt lỗi, file vẫn lưu — chỉ người trong tổ chức xem được.
 - Giữ `Content-Type: text/plain` khi POST để trình duyệt **không preflight** (Apps Script không trả lời OPTIONS). App có đọc JSON trả về để lấy `id`/`url`.
@@ -89,11 +89,33 @@ Ngoài ra: dòng rỗng trên Sheet bị bỏ qua (không tạo bản ghi rác),
 - `lavipco_ks_url_v1`  — URL Apps Script đè `DEFAULT_URL` (không còn UI để đặt, chỉ set qua console).
 - `lavipco_ks_by`      — tên người khảo sát gần nhất (điền sẵn).
 - `lavipco_ks_raw_v1`  — bản sao danh mục `RAW` do `index.html` ghi mỗi lần mở; `baocao.html` đọc lại để dựng báo cáo mà không cần nhúng lại RAW.
+- `lavipco_ks_url_run` — URL backend đang dùng (`currentSyncUrl()`), cũng do `index.html` ghi mỗi lần mở; `baocao.html` đọc để tải ảnh Drive về nhúng vào file Word.
 
 ### Trang báo cáo (`baocao.html`)
 Trang in được độc lập, đọc `lavipco_ks_raw_v1` + `lavipco_ks_data_v3` từ localStorage (cùng origin), tự tính tổng quan / phân bố theo địa bàn–phường/xã / thống kê loại nhà chờ – vị trí trụ – loại trụ đèn / khoảng cách trung bình + mức ưu tiên / bảng chi tiết nhóm theo phường/xã / phụ lục vị trí chưa khảo sát / **phụ lục ảnh hiện trường** / kết luận.
 
 **Ảnh trong báo cáo**: ảnh còn dataURL trên máy (`p.d`) nhúng thẳng nên luôn in được; ảnh đã lên Drive lấy qua `https://drive.google.com/thumbnail?id=<id>&sz=w200` (ô trong bảng) và `sz=w800` (phụ lục) — **cần mạng lúc in và file phải ở chế độ ai-có-link-cũng-xem**. Ảnh Drive hỏng được `onerror` thay bằng dòng chữ, đừng để ô trống trên bản in. Checkbox *In kèm phụ lục ảnh* trên thanh công cụ bật/tắt cả mục VI (hàng trăm ảnh in ra rất dày). Vào từ nút "Xuất báo cáo khảo sát" trong bảng Xuất dữ liệu. **Phải mở `index.html` trước ít nhất 1 lần** để có `lavipco_ks_raw_v1`.
+
+### Xuất Word (`exportWord` trong `baocao.html`)
+Nút **📄 Xuất Word** dựng file `.doc` từ chính DOM báo cáo đang hiển thị (`.page` được `cloneNode`), nên sửa phần render là file Word đổi theo, không phải sửa hai chỗ.
+
+Mấy chỗ **không được đơn giản hóa**, đều là hạn chế thật của Word:
+- **Định dạng là MHTML (multipart/related) đặt đuôi `.doc`**, không phải HTML thường. Word bản desktop **không hiện ảnh `data:` URI** — nhúng base64 vào `<img src>` thì mở ra chỉ thấy ô trống. Phải tách mỗi ảnh thành một phần MIME riêng, nối bằng `Content-Location` (`src` trong HTML phải trùng tên file ở phần MIME). Không dùng `.docx` vì đóng gói ZIP cần thư viện ngoài — luật cấm dependency.
+- **Word không hiểu flex/grid** → `wordHoaBoCuc()` đổi `.kpi`/`.pgrid`/`.sign` sang `<table>`, `.space` (chừa chỗ ký) sang các dòng trống. `<div>` rỗng đặt chiều cao không giữ được khoảng trắng trong Word.
+- **Bảng chi tiết 13 cột phải nằm khổ ngang**: `catSection()` cắt báo cáo thành `div.WordSection1/2/3`, section 2 khai `mso-page-orientation:landscape`. Cắt theo tiền tố tiêu đề `IV.` / `V.` — đổi số La Mã của mục thì phải sửa hàm này.
+- **Không viết trần `<!--` / `-->` ở bất kỳ đâu trong khối `<script>`** (kể cả trong chú thích JS): phải nối chuỗi `"<!"+"--"` và `"--"+">"`. Đoạn conditional comment `[if gte mso 9]` (đặt chế độ xem Print/100% cho Word) từng viết trần và **làm gãy cả trang báo cáo** — bộ phân tích HTML cắt khối script tại đó, phần code còn lại đổ ra màn hình thành một mảng chữ. Thẻ đóng trong chuỗi cũng nên viết `<\/div>`. (Chrome/Edge tự xử lý được, nhưng đã gãy thật trên máy người dùng nên đừng khôi phục cách viết cũ.)
+- Dòng base64 cắt **≤76 ký tự** theo chuẩn MIME, cắt bằng vòng lặp chứ không regex toàn cục (file có ảnh lên tới hàng chục MB).
+- Bỏ tick *In kèm phụ lục ảnh* thì **bỏ luôn ảnh nhỏ trong bảng chi tiết** — không in phụ lục nghĩa là muốn file nhẹ, giữ lại ảnh nhỏ vẫn phải tải đủ từng tấm.
+
+**Ảnh trên Drive** — báo cáo thật có tới ~400 ảnh (784 thẻ `<img>`), nên chỗ này phải chịu được quy mô đó:
+- JS không đọc trực tiếp file Drive được (không có CORS). Thử tải thẳng **một lần**, hỏng thì chuyển hẳn sang `?action=img` của Apps Script và nhớ kết quả (`driveTrucTiep`) — đừng dò lại cho từng tấm.
+- **Tải song song 5 luồng**, nhưng ảnh Drive **đầu tiên phải chạy một mình** (vòng `while` chờ `driveTrucTiep!==null` rồi mới bung `Promise.all`): bung ngay thì 5 luồng cùng dò, cùng hỏng, cùng gọi lại backend. Tuần tự hết thì 400 ảnh mất cả chục phút.
+- Mỗi ảnh chỉ tải 1 lần dù xuất hiện cả ở bảng lẫn phụ lục — **khóa theo file ID, không theo URL**, vì hai chỗ gọi Drive với `sz` khác nhau. Danh sách ảnh phải gom **trước** khi tải, và tiến độ đếm theo số ảnh thật, không theo số thẻ `<img>` (nếu không, nút hiện "30/784" trong khi thực tế chỉ có ~392 tấm).
+- Client xin bản thu nhỏ `?w=1000`; `doGet` lấy qua `UrlFetchApp` (chạy trên máy chủ nên không vướng CORS) và **rơi về ảnh gốc** nếu hỏng. Bản Apps Script cũ chưa hiểu `w` thì bỏ qua tham số — vẫn chạy, chỉ nặng hơn.
+- Quá 60 ảnh thì `confirm()` báo trước thời gian và dung lượng dự kiến, vì đây là thao tác kéo dài vài phút và ra file vài chục MB.
+- Ảnh không lấy được thì thay bằng dòng chữ giải thích, không để ô trống.
+
+URL backend lấy từ `lavipco_ks_url_run` — `index.html` ghi key này mỗi lần mở app (giống cách chia sẻ `RAW`). **Không dùng chung `LS_URL`**: đó là key đè tay, ghi vào sẽ khóa cứng, sau này đổi `DEFAULT_URL` trong code sẽ không còn tác dụng.
 
 ### Danh mục vị trí gốc (nguồn dữ liệu chuẩn)
 Mảng `RAW` (JSON, 1 dòng duy nhất) nhúng trong `<script>` của `index.html`. Mỗi phần tử:
