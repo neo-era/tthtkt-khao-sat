@@ -68,24 +68,26 @@ Key = STT (số). Value:
 ### Đề xuất bộ đèn pha LED (`deXuatDen` trong index.html)
 Tra bảng theo **"Hướng dẫn thực hiện khảo sát đề xuất phương án bổ sung, tăng cường chiếu sáng khu vực trụ dừng, nhà chờ xe buýt"** của Phòng Kỹ thuật — căn cứ VB 5104/TTGTHTKT-CXCS1 (31/7/2026) và 29093/SXD-HTKT (11/8/2026), thông số mô phỏng bằng DIALux.
 
-`X` = khoảng cách trụ đèn hiện hữu → trụ dừng/nhà chờ theo hướng xe buýt lưu thông, **chính là ô `d1`**:
+`X` = khoảng cách trụ đèn hiện hữu → trụ dừng/nhà chờ theo hướng xe buýt lưu thông (ô `d1`); `Y` = khoảng cách trụ dừng → trụ đèn kế (ô `d2`):
 
-| X | Công suất | Độ cao H | Góc α |
+| D | Công suất | Độ cao H | Góc α |
 |---|---|---|---|
-| 5 ≤ X ≤ 10 | 50 W | 6–10 m | 5–15° |
-| 10 < X ≤ 15 | 80 W | 6–10 m | 5–15° |
-| 15 < X ≤ 20 | 80 W | 7–10 m | 5–15° |
+| 0 ≤ D ≤ 10 | 50 W | 6–10 m | 5–15° |
+| 10 < D ≤ 15 | 80 W | 6–10 m | 5–15° |
+| 15 < D ≤ 20 | 80 W | 7–10 m | 5–15° |
 
-- **Không lưu vào bản ghi**, luôn tính lại từ `d1`. Lưu sẵn thì sửa khoảng cách mà con số cũ vẫn nằm đó → sai mà không ai biết.
-- Mốc biên là **quy định**, không phải ước lượng: `X = 10` ra 50 W (dòng 1 bao gồm cả 10), `X = 10.1` mới lên 80 W. Có bộ test riêng cho 17 mốc.
-- Ngoài bảng (`X < 5` hoặc `X > 20`) ghi "Ngoài bảng" kèm cảnh báo, **không tự suy** ra công suất.
-- Có cả `d1` lẫn `d2` = nằm giữa 2 trụ → nhắc mục 2 của Hướng dẫn (chỉ lắp 1 bên).
+`D` = khoảng cách dùng để tra: **`Y` nếu `Y ≤ 5 m`** (trụ đèn kế sát ngay trụ dừng thì lắp luôn ở trụ kế), ngược lại là `X`. `Y` = ô `d2` (KC trụ dừng → trụ đèn kế).
+
+- **Không lưu vào bản ghi**, luôn tính lại từ `d1`/`d2`. Lưu sẵn thì sửa khoảng cách mà con số cũ vẫn nằm đó → sai mà không ai biết.
+- Mốc biên là **quy định**, không phải ước lượng: `D = 10` ra 50 W (dòng 1 bao gồm cả 10), `D = 10.1` mới lên 80 W; `Y = 5` vẫn tính là trụ kế, `Y = 5.1` thì không. Có bộ test riêng cho 19 mốc.
+- Ngoài bảng (`D > 20`) ghi "Ngoài bảng" kèm cảnh báo, **không tự suy** ra công suất.
+- Có cả `d1` lẫn `d2` = nằm giữa 2 trụ → nhắc mục 2 của Hướng dẫn (chỉ lắp 1 bên). Màn chi tiết và cột căn cứ nói rõ **lắp ở trụ trước hay trụ kế**.
 - `soMet()` nhận `6,5` (bàn phím tiếng Việt) nhưng `khoảng 6` thì trả `null` — đừng thay bằng `parseFloat` trần, nó biến `6,5` thành `6`.
 - **`baocao.html` giữ một bản sao của bảng này** (hai file không chia sẻ JS được) — sửa thì sửa cả hai.
 
-**Căn cứ lựa chọn** (`canCuDen` trong `baocao.html`): bảng chi tiết mục IV có thêm cột ghi vì sao chọn bộ đèn đó — `Mục 1 · 5 ≤ X ≤ 10 m · H 6 – 10 m · α 5 – 15°`, thêm `· lắp 1 bên` khi có cả `d2` (mục 2, nằm giữa 2 trụ). Mục III có bảng giải mã Mục 1/2/3 để đọc được cột này. Khoảng X sinh từ `BANG_DEN`, không viết cứng.
+**Căn cứ lựa chọn** (`canCuDen` trong `baocao.html`): bảng chi tiết mục IV có thêm cột ghi vì sao chọn bộ đèn đó — `Mục 1 · 0 ≤ X ≤ 10 m · H 6 – 10 m · α 5 – 15°`; thành `Mục 2` khi có cả `d2` (nằm giữa 2 trụ), và thêm `· lắp ở trụ đèn kế` kèm nhãn khoảng ghi `Y` khi `Y ≤ 5 m`. Mục III có bảng giải mã Mục 1/2/3 để đọc được cột này. Khoảng sinh từ `BANG_DEN`, không viết cứng.
 
-Hai chỗ **cố tình không khẳng định**: `X > 20 m` chỉ ghi *"cân nhắc mục 3"* chứ không ghi thẳng "trồng trụ STK 6 m" — Hướng dẫn định nghĩa mục 3 là *không có trụ chiếu sáng*, còn đây là có trụ nhưng ở xa, suy sang mục 3 là phán đoán của người đọc. `X < 5 m` cũng chỉ ghi *"xem xét riêng"*.
+Chỗ **cố tình không khẳng định**: trên 20 m chỉ ghi *"cân nhắc mục 3"* chứ không ghi thẳng "trồng trụ STK 6 m" — Hướng dẫn định nghĩa mục 3 là *không có trụ chiếu sáng*, còn đây là có trụ nhưng ở xa, suy sang mục 3 là phán đoán của người đọc.
 
 Cột căn cứ **chỉ có trong báo cáo**, không có trong `rowArray`/Sheet — thêm vào đó là phải chạy `nangCapBang` + deploy lại. Bảng chi tiết mục IV vì vậy có **16 cột**; đổi số cột thì phải sửa kèm `colspan` (2 chỗ dùng số cột đầy đủ, 1 chỗ dùng số cột − 1 ở dòng ghi chú).
 

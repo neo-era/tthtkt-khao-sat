@@ -391,26 +391,34 @@ const PRIO   = ["Ưu tiên 1","Ưu tiên 2"];
    số cũ vẫn nằm đó, thành ra sai mà không ai biết. Mọi chỗ cần thì tính lại.
    `baocao.html` có một bản sao của bảng này — sửa thì sửa cả hai. */
 const BANG_DEN = [
-  { toi:10, w:50, cao:"6 – 10 m" },     // 5 ≤ X ≤ 10
-  { toi:15, w:80, cao:"6 – 10 m" },     // 10 < X ≤ 15
-  { toi:20, w:80, cao:"7 – 10 m" },     // 15 < X ≤ 20
+  { toi:10, w:50, cao:"6 – 10 m" },     // 0 ≤ D ≤ 10
+  { toi:15, w:80, cao:"6 – 10 m" },     // 10 < D ≤ 15
+  { toi:20, w:80, cao:"7 – 10 m" },     // 15 < D ≤ 20
 ];
 const GOC_DEN = "5 – 15°";
+/* Y = khoảng cách trụ dừng → trụ đèn KẾ. Trụ kế mà nằm trong ngưỡng này thì lắp
+   ngay trên nó thay vì trụ phía trước, và tra công suất theo Y. */
+const Y_GAN = 5;
 function soMet(v){
   const s=String(v==null?"":v).trim().replace(",",".");
   return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null;   // "khoảng 6" thì chịu, để người đọc tự xử
 }
-/* Trả {w, cao, canhbao} — w=0 nghĩa là ngoài bảng, phải xem xét riêng. */
-function deXuatDen(d1){
-  const x = soMet(d1);
-  if(x===null) return null;
-  if(x < 5) return { w:0, cao:"", canhbao:"X < 5 m — ngoài bảng hướng dẫn, cần xem xét riêng" };
-  for(const r of BANG_DEN) if(x <= r.toi) return { w:r.w, cao:r.cao, canhbao:"" };
-  return { w:0, cao:"", canhbao:"X > 20 m — ngoài bảng; cân nhắc trồng trụ STK cao 6 m (mục 3)" };
+/* Trả { w, cao, ke, dai, canhbao }:
+     w   = công suất, 0 nghĩa là ngoài bảng phải xem xét riêng
+     ke  = true khi chọn lắp ở trụ đèn kế (vì Y ≤ 5 m) thay vì trụ phía trước
+     dai = khoảng cách đã dùng để tra bảng (X hoặc Y) */
+function deXuatDen(d1,d2){
+  const x=soMet(d1), y=soMet(d2);
+  const ke = (y!==null && y<=Y_GAN);      // trụ kế sát ngay trụ dừng → lắp ở đó
+  const D  = ke ? y : x;
+  if(D===null) return null;
+  for(const r of BANG_DEN) if(D<=r.toi) return { w:r.w, cao:r.cao, ke:ke, dai:D, canhbao:"" };
+  return { w:0, cao:"", ke:ke, dai:D,
+    canhbao:"Trên 20 m — ngoài bảng; cân nhắc trồng trụ STK cao 6 m (mục 3)" };
 }
 /* Chuỗi ngắn để ghi vào bảng dữ liệu và báo cáo. */
-function denText(d1){
-  const d = deXuatDen(d1);
+function denText(d1,d2){
+  const d = deXuatDen(d1,d2);
   if(!d) return "";
   return d.w ? ("Đèn pha LED " + d.w + "W") : "Ngoài bảng";
 }
@@ -644,12 +652,12 @@ function veDeXuatDen(){
   const d1=document.getElementById("fD1").value, d2=document.getElementById("fD2").value;
   const box=document.getElementById("boxDen");
   const w=document.getElementById("denW"), mo=document.getElementById("denMo");
-  const d=deXuatDen(d1);
+  const d=deXuatDen(d1,d2);
   box.className="dexuat";
   if(!d){
     box.classList.add("off");
     w.textContent="Chưa đề xuất được bộ đèn";
-    mo.textContent="Nhập khoảng cách từ trụ đèn đến trụ dừng / nhà chờ (ô đầu tiên) để app tra bảng Hướng dẫn.";
+    mo.textContent="Nhập khoảng cách tới trụ đèn (một trong hai ô trên) để app tra bảng Hướng dẫn.";
     return;
   }
   if(!d.w){
@@ -659,9 +667,12 @@ function veDeXuatDen(){
     return;
   }
   w.textContent="Đèn pha LED "+d.w+"W";
-  // Nằm giữa 2 trụ đèn (có cả khoảng cách tới trụ kế) thì mục 2 chỉ cho lắp 1 bên.
-  const giua = soMet(d2)!==null;
-  mo.textContent="Độ cao lắp đèn "+d.cao+" · góc chiếu "+GOC_DEN+
+  // Nằm giữa 2 trụ đèn (có cả hai khoảng cách) thì mục 2 chỉ cho lắp 1 bên —
+  // và trụ kế sát ngay trụ dừng (Y ≤ 5 m) thì lắp luôn ở trụ kế đó.
+  const giua = soMet(d1)!==null && soMet(d2)!==null;
+  mo.textContent=
+    (d.ke ? "Lắp ở TRỤ ĐÈN KẾ (cách "+d.dai+" m). " : "Lắp ở trụ đèn phía trước (cách "+d.dai+" m). ")+
+    "Độ cao lắp đèn "+d.cao+" · góc chiếu "+GOC_DEN+
     " · đối xứng, hướng chiếu cùng chiều xe buýt lưu thông."+
     (giua?" Nằm giữa 2 trụ đèn — chỉ lắp 1 bên (mục 2).":"")+
     " Độ cao lắp phải nhỏ hơn chiều cao trụ hiện hữu.";
@@ -906,7 +917,7 @@ function rowArray(r){
   return [r.stt,r.ma||"",r.diaban,r.ten,r.duong,r.sonha,r.phuong,r.loai,
     c.lat||"",c.lng||"",c.d1||"",c.d2||"",
     c.nhacho||"",c.vitri||"",c.loaitru||"",c.prio||"",
-    denText(c.d1),                                  // suy từ khoảng cách, không lưu
+    denText(c.d1,c.d2),                                  // suy từ khoảng cách, không lưu
     c.note||"",
     photoLink(ph[0]),photoLink(ph[1]),photoLink(ph[2]),
     c.by||"",c.at||""];

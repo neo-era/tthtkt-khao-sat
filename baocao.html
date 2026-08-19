@@ -120,42 +120,46 @@ const BANG_DEN = [
   { toi:15, w:80, cao:"6 – 10 m" },
   { toi:20, w:80, cao:"7 – 10 m" },
 ];
+// Y = khoảng cách trụ dừng → trụ đèn KẾ. Trụ kế trong ngưỡng này thì lắp ngay ở nó.
+const Y_GAN = 5;
 function soMet(v){
   const s=String(v==null?"":v).trim().replace(",",".");
   return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null;
 }
-function deXuatDen(d1){
-  const x=soMet(d1);
-  if(x===null) return null;
-  if(x<5) return { w:0, canhbao:"X < 5 m — ngoài bảng" };
-  for(const r of BANG_DEN) if(x<=r.toi) return { w:r.w, cao:r.cao, canhbao:"" };
-  return { w:0, canhbao:"X > 20 m — cân nhắc trồng trụ mới" };
+function deXuatDen(d1,d2){
+  const x=soMet(d1), y=soMet(d2);
+  const ke=(y!==null && y<=Y_GAN);
+  const D=ke?y:x;
+  if(D===null) return null;
+  for(const r of BANG_DEN) if(D<=r.toi) return { w:r.w, cao:r.cao, ke:ke, dai:D, canhbao:"" };
+  return { w:0, ke:ke, dai:D, canhbao:"Trên 20 m — cân nhắc trồng trụ mới" };
 }
-function denText(d1){
-  const d=deXuatDen(d1);
+function denText(d1,d2){
+  const d=deXuatDen(d1,d2);
   if(!d) return "";
   return d.w ? ("LED "+d.w+"W") : "Ngoài bảng";
 }
-/* Câu căn cứ ngắn cho từng vị trí: thuộc mục nào của Hướng dẫn, X rơi vào khoảng
-   nào, độ cao và góc chiếu kèm theo. Khoảng X lấy từ BANG_DEN chứ không viết cứng
-   — sửa bảng tra một chỗ là căn cứ đổi theo.
+/* Câu căn cứ ngắn cho từng vị trí: thuộc mục nào của Hướng dẫn, khoảng cách rơi
+   vào khoảng nào, độ cao và góc chiếu kèm theo. Khoảng lấy từ BANG_DEN chứ không
+   viết cứng — sửa bảng tra một chỗ là căn cứ đổi theo.
 
-   Hai chỗ cố tình KHÔNG khẳng định:
-   - X > 20 m chỉ ghi "cân nhắc mục 3". Hướng dẫn định nghĩa mục 3 là "không có trụ
-     chiếu sáng", còn đây là có trụ nhưng ở xa — suy sang mục 3 là phán đoán, phải
-     để người đọc quyết.
-   - X < 5 m cũng ngoài bảng, không nội suy công suất. */
+   Y ≤ 5 m thì đèn lắp ở TRỤ KẾ và tra bảng theo Y, nên nhãn khoảng phải ghi "Y"
+   chứ không phải "X", kẻo người đọc đối chiếu nhầm cột.
+
+   Chỗ cố tình KHÔNG khẳng định: trên 20 m chỉ ghi "cân nhắc mục 3". Hướng dẫn định
+   nghĩa mục 3 là "không có trụ chiếu sáng", còn đây là có trụ nhưng ở xa — suy sang
+   mục 3 là phán đoán, phải để người đọc quyết. */
 function canCuDen(d1,d2){
-  const x=soMet(d1);
-  if(x===null) return "Chưa đo khoảng cách";
-  if(x<5)  return "Ngoài bảng · X < 5 m · xem xét riêng";
-  if(x>BANG_DEN[BANG_DEN.length-1].toi) return "Ngoài bảng · X > 20 m · cân nhắc mục 3";
-  let i=0; while(x>BANG_DEN[i].toi) i++;
-  const khoang = i===0 ? "5 ≤ X ≤ "+BANG_DEN[0].toi+" m"
-                       : BANG_DEN[i-1].toi+" < X ≤ "+BANG_DEN[i].toi+" m";
-  const giua = soMet(d2)!==null;          // có cả 2 khoảng cách = nằm giữa 2 trụ
-  return (giua?"Mục 2":"Mục 1")+" · "+khoang+" · H "+BANG_DEN[i].cao+" · α 5 – 15°"+
-         (giua?" · lắp 1 bên":"");
+  const d=deXuatDen(d1,d2);
+  if(!d) return "Chưa đo khoảng cách";
+  const k=d.ke?"Y":"X";
+  if(!d.w) return "Ngoài bảng · "+k+" > 20 m · cân nhắc mục 3";
+  let i=0; while(d.dai>BANG_DEN[i].toi) i++;
+  const khoang = i===0 ? "0 ≤ "+k+" ≤ "+BANG_DEN[0].toi+" m"
+                       : BANG_DEN[i-1].toi+" < "+k+" ≤ "+BANG_DEN[i].toi+" m";
+  const giua = soMet(d1)!==null && soMet(d2)!==null;
+  return (giua?"Mục 2":"Mục 1")+" · "+(d.ke?"lắp ở trụ đèn kế · ":"")+
+         khoang+" · H "+d.cao+" · α 5 – 15°";
 }
 
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
@@ -246,30 +250,34 @@ function render(){
   }
   /* Đề xuất bộ đèn pha: tra bảng Hướng dẫn bằng chính ô khoảng cách d1.
      Không lưu sẵn trong bản ghi nên báo cáo luôn khớp với số liệu mới nhất. */
-  const denDem=[0,0,0], denNgoai=[], denChua=[];
+  const denDem=[0,0,0], denNgoai=[], denChua=[], denKe=[];
   done.forEach(r=>{
-    const x=soMet(rec(STORE,r.stt).d1);
-    if(x===null){ denChua.push(r); return; }
-    let i=-1;
-    if(x>=5) for(let k=0;k<BANG_DEN.length;k++) if(x<=BANG_DEN[k].toi){ i=k; break; }
-    if(i<0) denNgoai.push(r); else denDem[i]++;
+    const c=rec(STORE,r.stt), d=deXuatDen(c.d1,c.d2);
+    if(!d){ denChua.push(r); return; }
+    if(d.ke) denKe.push(r);
+    if(!d.w){ denNgoai.push(r); return; }
+    let i=0; while(d.dai>BANG_DEN[i].toi) i++;
+    denDem[i]++;
   });
   const denRows = BANG_DEN.map((b,i)=>
-      '<tr><td class="num">'+(i===0?"5 ≤ X ≤ "+b.toi:BANG_DEN[i-1].toi+" &lt; X ≤ "+b.toi)+' m</td>'+
+      '<tr><td class="num">'+(i===0?"0 ≤ D ≤ "+b.toi:BANG_DEN[i-1].toi+" &lt; D ≤ "+b.toi)+' m</td>'+
       '<td class="num">'+b.w+' W</td><td class="num">'+b.cao+'</td><td class="num">5 – 15°</td>'+
       '<td class="num">'+denDem[i]+'</td></tr>').join("")+
-    '<tr><td>Ngoài bảng (X &lt; 5 m hoặc X &gt; 20 m)</td><td class="num">—</td><td class="num">—</td>'+
+    '<tr><td>Ngoài bảng (D &gt; 20 m)</td><td class="num">—</td><td class="num">—</td>'+
       '<td class="num">—</td><td class="num">'+denNgoai.length+'</td></tr>'+
     '<tr><td>Chưa đo được khoảng cách</td><td class="num">—</td><td class="num">—</td>'+
       '<td class="num">—</td><td class="num">'+denChua.length+'</td></tr>'+
     '<tr class="grp"><td colspan="4"><b>Tổng số vị trí đã khảo sát</b></td>'+
       '<td class="num"><b>'+done.length+'</b></td></tr>';
-  const denNgoaiTxt = denNgoai.length
-    ? '<p><i>Vị trí ngoài bảng, cần xem xét riêng: '+
-        denNgoai.slice(0,20).map(r=>"STT "+r.stt).join(", ")+
-        (denNgoai.length>20?(" và "+(denNgoai.length-20)+" vị trí khác"):"")+
-        '. Trường hợp X &gt; 20 m thì cân nhắc trồng trụ STK cao 6 m rồi lắp theo mục 1.</i></p>'
-    : "";
+  const denNgoaiTxt =
+    (denKe.length ? '<p><i>'+denKe.length+' vị trí có trụ đèn kế cách trụ dừng không quá '+Y_GAN+
+        ' m nên lắp đèn ngay trên trụ kế, công suất tra theo Y.</i></p>' : '')+
+    (denNgoai.length
+      ? '<p><i>Vị trí ngoài bảng, cần xem xét riêng: '+
+          denNgoai.slice(0,20).map(r=>"STT "+r.stt).join(", ")+
+          (denNgoai.length>20?(" và "+(denNgoai.length-20)+" vị trí khác"):"")+
+          '. Khoảng cách trên 20 m thì cân nhắc trồng trụ STK cao 6 m rồi lắp theo mục 1.</i></p>'
+      : "");
 
   const nhachoRows  = tally("nhacho",  NHACHOS);
   const vitriRows   = tally("vitri",   VITRIS);
@@ -304,7 +312,7 @@ function render(){
       '<td>'+esc(c.vitri||"—")+'</td>'+
       '<td>'+esc(c.loaitru||"—")+'</td>'+
       '<td class="'+prCls+'">'+esc(c.prio||"—")+'</td>'+
-      '<td class="num">'+esc(denText(c.d1)||"—")+'</td>'+
+      '<td class="num">'+esc(denText(c.d1,c.d2)||"—")+'</td>'+
       '<td>'+esc(canCuDen(c.d1,c.d2))+'</td>'+
       '<td>'+photoCell(c)+'</td>'+
       '<td>'+esc(c.by||"—")+'</td>'+
@@ -399,9 +407,12 @@ function render(){
     (căn cứ văn bản số 5104/TTGTHTKT-CXCS1 ngày 31/7/2026 và số 29093/SXD-HTKT ngày 11/8/2026),
     thông số mô phỏng bằng phần mềm DIALux. Bộ đèn pha LED đối xứng, góc chiếu chùm tia 30°,
     hướng chiếu cùng chiều phương tiện lưu thông; độ cao lắp phải nhỏ hơn chiều cao trụ hiện hữu.
-    X là khoảng cách từ trụ chiếu sáng hiện hữu đến trụ dừng / nhà chờ.</p>
+    <b>X</b> là khoảng cách từ trụ chiếu sáng hiện hữu đến trụ dừng / nhà chờ theo hướng xe lưu thông;
+    <b>Y</b> là khoảng cách từ trụ dừng / nhà chờ đến trụ đèn kế tiếp. Trụ đèn kế cách không quá
+    <b>5 m</b> thì lắp đèn ngay trên trụ kế đó và tra công suất theo Y; các trường hợp còn lại tra theo X.
+    <b>D</b> trong bảng dưới là khoảng cách được dùng để tra (X hoặc Y).</p>
     <table>
-      <tr><th>Khoảng cách X</th><th>Công suất</th><th>Độ cao lắp (H)</th><th>Góc chiếu (α)</th><th>Số vị trí</th></tr>
+      <tr><th>Khoảng cách D</th><th>Công suất</th><th>Độ cao lắp (H)</th><th>Góc chiếu (α)</th><th>Số vị trí</th></tr>
       ${denRows}
     </table>
     ${denNgoaiTxt}
