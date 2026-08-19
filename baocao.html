@@ -35,6 +35,9 @@
   h1{font-size:18px;text-align:center;margin:14px 0 4px;text-transform:uppercase;line-height:1.3}
   .subttl{text-align:center;font-style:italic;color:var(--muted);margin:0 0 4px}
   .cancu{text-align:center;font-style:italic;font-size:12.5px;color:#33485c;margin:8px 0 2px}
+  /* Báo cáo trích lọc phải nói rõ ngay dưới tiêu đề, kẻo người đọc tưởng toàn bộ danh mục */
+  .phamvi{text-align:center;font-size:12.5px;color:#7A4A0A;background:#FCEFDC;
+    border:1px solid #F2D9B0;border-radius:6px;padding:6px 10px;margin:8px auto 2px;max-width:150mm}
   h2{font-size:14.5px;margin:20px 0 8px;color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:3px}
   h3{font-size:13.5px;margin:14px 0 6px;color:var(--ink)}
   table{width:100%;border-collapse:collapse;margin:8px 0 6px}
@@ -93,6 +96,7 @@
   <input id="tDate" size="12">
   <label>Người lập</label>
   <input id="tBy" placeholder="Họ tên" size="16">
+  <button id="btnBoLoc" style="display:none;background:#B45309">✕ Bỏ lọc, xem toàn bộ</button>
   <label><input type="checkbox" id="tAnh" checked> In kèm phụ lục ảnh</label>
   <button class="w" id="btnWord" onclick="exportWord()">📄 Xuất Word</button>
   <button onclick="window.print()">🖨 In / Lưu PDF</button>
@@ -180,7 +184,29 @@ function photoCell(c){
 function pad(n){ return String(n).padStart(2,"0"); }
 function today(){ const d=new Date(); return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear(); }
 
-const RAW = loadRaw();
+/* Bộ lọc do app gửi sang: { mo: "mô tả", stt: [danh sách STT] }. Nhận sẵn danh sách
+   STT nên trang này không phải chép lại logic lọc của app. */
+function loadLoc(){
+  try{
+    const o=JSON.parse(localStorage.getItem("lavipco_ks_loc")||"null");
+    return (o && Array.isArray(o.stt) && o.stt.length) ? o : null;
+  }catch(e){ return null; }
+}
+const LOC = loadLoc();
+/* Bộ lọc nằm trong localStorage nên còn đó cả khi mở lại trang bằng dấu trang.
+   Cho một nút bỏ lọc thật rõ, kẻo in ra bản trích lọc mà tưởng toàn bộ danh mục. */
+if(LOC){
+  const b=document.getElementById("btnBoLoc");
+  b.style.display=""; b.title=LOC.mo;
+  b.onclick=()=>{ try{ localStorage.removeItem("lavipco_ks_loc"); }catch(e){} location.reload(); };
+}
+const RAW = (function(){
+  const tc=loadRaw();
+  if(!LOC) return tc;
+  const co={}; LOC.stt.forEach(s=>co[s]=1);
+  return tc.filter(r=>co[r.stt]);
+})();
+const TONG_DANH_MUC = loadRaw().length;
 const STORE = loadStore();
 
 if(!RAW.length){
@@ -320,6 +346,8 @@ function render(){
     <h1>Tổng hợp kết quả khảo sát,<br>tính toán lựa chọn bộ đèn LED</h1>
     <p class="subttl">Tại các trạm dừng xe buýt địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh</p>
     <p class="cancu">Căn cứ Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý — ${total} vị trí thuộc phạm vi khảo sát.</p>
+    ${LOC ? '<p class="phamvi"><b>Phạm vi báo cáo:</b> '+esc(LOC.mo)+
+            ' — '+total+'/'+TONG_DANH_MUC+' vị trí của danh mục. Đây là báo cáo trích lọc, không phải toàn bộ danh mục.</p>' : ''}
     <p class="cancu" id="cDate">Ngày lập báo cáo: ${today()}</p>
 
     <h2>I. Tổng quan kết quả khảo sát</h2>

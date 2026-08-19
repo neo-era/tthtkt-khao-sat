@@ -44,6 +44,29 @@
   .search svg{flex:none}
   .selward{width:100%;margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:10px;
     background:var(--card);color:var(--text);font:inherit;font-size:14px}
+  /* Lọc thêm: gấp lại mặc định để màn hình hiện trường khỏi rối */
+  .loctm{width:100%;margin-top:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--card);color:var(--ink-2);font:inherit;font-size:13.5px;font-weight:600;
+    display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .loctm b{font-size:12px;font-weight:700;color:#fff;background:var(--primary);
+    border-radius:99px;padding:2px 9px;display:none}
+  .loctm.co b{display:inline-block}
+  .locbox{display:none;margin-top:8px;padding:12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--card)}
+  .locbox.show{display:block}
+  .locxuat{display:none;gap:10px;align-items:flex-start;margin:0 0 12px;padding:11px 13px;
+    border:1px solid #C5DBF2;border-radius:11px;background:#E8F1FB}
+  .locxuat.show{display:flex}
+  .locxuat input{margin-top:2px;flex:none;width:18px;height:18px}
+  .locxuat b{display:block;font-size:13.5px;color:#12406E}
+  .locxuat i{display:block;font-size:12.5px;color:#3B6690;font-style:normal;margin-top:2px}
+  .locbox label{display:block;font-size:12px;font-weight:700;color:var(--muted);
+    margin:10px 0 5px;text-transform:uppercase;letter-spacing:.3px}
+  .locbox label:first-child{margin-top:0}
+  .seg-sm button{padding:7px 6px;font-size:12.5px;min-width:calc(33.33% - 5px)}
+  .ngay{display:flex;align-items:center;gap:8px}
+  .ngay .ctl{flex:1;min-width:0}
+  .ngay span{color:var(--muted);flex:none}
   .chips{display:flex;gap:7px;overflow-x:auto;padding:9px 1px 3px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
   .chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink-2);
@@ -210,6 +233,23 @@
     </div>
     <div class="chips" id="chips"></div>
     <select class="selward" id="selWard" aria-label="Lọc theo phường/xã"></select>
+
+    <button class="loctm" id="btnLocThem" type="button" aria-expanded="false">
+      <span>Lọc thêm</span><b id="locDem"></b>
+    </button>
+    <div class="locbox" id="locBox">
+      <label>Loại hạ tầng</label>
+      <div class="seg seg-sm" id="segLoai"></div>
+      <label>Mức ưu tiên đề xuất</label>
+      <div class="seg seg-sm" id="segPrioLoc"></div>
+      <label>Ngày khảo sát (theo thời gian lưu)</label>
+      <div class="ngay">
+        <input class="ctl" id="locTu" type="date" aria-label="Từ ngày">
+        <span>→</span>
+        <input class="ctl" id="locDen" type="date" aria-label="Đến ngày">
+      </div>
+      <button class="btn btn-ghost" id="btnLocXoa" type="button">Bỏ hết bộ lọc</button>
+    </div>
   </div>
 
   <div class="wrap" id="list"></div>
@@ -315,9 +355,13 @@
   <div class="grab"></div>
   <h3>Xuất dữ liệu &amp; báo cáo</h3>
   <p id="expSummary">—</p>
+  <label class="locxuat" id="locXuatWrap">
+    <input type="checkbox" id="cbLocXuat" checked>
+    <span><b id="locXuatDem">—</b><i id="locXuatMo"></i></span>
+  </label>
   <button class="btn btn-export" id="btnInstall" style="display:none">⬇️ Cài app vào máy</button>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
-  <a class="btn btn-ghost" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
+  <a class="btn btn-ghost" id="btnBaoCao" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
   <button class="btn btn-export" id="btnXlsx">📊 Tải dữ liệu Excel (.xlsx)</button>
   <button class="btn btn-ghost" id="btnCsv">Tải file CSV (dự phòng)</button>
 </div>
@@ -375,6 +419,9 @@ let store = loadStore();
 let filterDistrict = "Tất cả";
 let filterWard = "Tất cả";
 let filterStatus = "all";
+let filterLoai = "Tất cả";           // Tất cả / Trụ dừng / Nhà chờ
+let filterPrio = "Tất cả";           // Tất cả / Ưu tiên 1 / Ưu tiên 2
+let filterTu = "", filterDen = "";   // ngày khảo sát, dạng yyyy-mm-dd
 let query = "";
 let current = null;
 let listLimit = 200;                 // số thẻ hiển thị mỗi lần (danh mục hơn 3.700 vị trí)
@@ -435,18 +482,93 @@ function renderWards(){
   sel.value=filterWard;
 }
 function resetPaging(){ listLimit=PAGE; }
+
+/* ---------- KHỐI "LỌC THÊM" ---------- */
+function buildSegLoc(id, opts, lay, dat){
+  const seg=document.getElementById(id); seg.innerHTML="";
+  opts.forEach(o=>{
+    const b=document.createElement("button"); b.type="button"; b.dataset.v=o; b.textContent=o;
+    b.className = lay()===o ? "on" : "";
+    b.onclick=()=>{ dat(o); resetPaging(); veLocThem(); renderList(); updateExpSummary(); };
+    seg.appendChild(b);
+  });
+}
+function veLocThem(){
+  buildSegLoc("segLoai",["Tất cả","Trụ dừng","Nhà chờ"], ()=>filterLoai, v=>filterLoai=v);
+  buildSegLoc("segPrioLoc",["Tất cả"].concat(PRIO),      ()=>filterPrio, v=>filterPrio=v);
+  document.getElementById("locTu").value=filterTu;
+  document.getElementById("locDen").value=filterDen;
+  const n=soLocDangDung(), nut=document.getElementById("btnLocThem");
+  nut.classList.toggle("co", n>0);
+  document.getElementById("locDem").textContent=n?(n+" bộ lọc"):"";
+}
+function xoaHetLoc(){
+  filterStatus="all"; filterDistrict="Tất cả"; filterWard="Tất cả";
+  filterLoai="Tất cả"; filterPrio="Tất cả"; filterTu=""; filterDen=""; query="";
+  document.getElementById("q").value="";
+  resetPaging(); renderChips(); renderWards(); veLocThem(); renderList(); updateExpSummary();
+}
+/* Ngày khảo sát suy từ ô "Thời gian lưu" (`at`). Chuỗi này không cùng một dạng:
+   máy ghi ra "15:20:11 12/8/2026", chỗ khác lại "13/08/2026 09:10". Nên chỉ bắt
+   cụm d/M/yyyy ở bất kỳ đâu rồi đổi thành "yyyy-mm-dd" để so bằng chuỗi — khỏi
+   dựng Date, khỏi lệch múi giờ. */
+function ngayBanGhi(at){
+  const m=/(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(at||""));
+  if(!m) return "";
+  return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
+}
+function coLocThem(){
+  return filterLoai!=="Tất cả" || filterPrio!=="Tất cả" || !!filterTu || !!filterDen;
+}
+function soLocDangDung(){
+  let n=0;
+  if(filterStatus!=="all") n++;
+  if(filterDistrict!=="Tất cả") n++;
+  if(filterWard!=="Tất cả") n++;
+  if(query) n++;
+  if(filterLoai!=="Tất cả") n++;
+  if(filterPrio!=="Tất cả") n++;
+  if(filterTu||filterDen) n++;
+  return n;
+}
 function matches(r){
   if(filterDistrict!=="Tất cả" && r.diaban!==filterDistrict) return false;
   if(filterWard!=="Tất cả" && r.phuong!==filterWard) return false;
   const done=isDone(r.stt);
   if(filterStatus==="done" && !done) return false;
   if(filterStatus==="pending" && done) return false;
+  if(filterLoai!=="Tất cả" && (filterLoai==="Nhà chờ")!==laNhaCho(r)) return false;
+  if(filterPrio!=="Tất cả" && rec(r.stt).prio!==filterPrio) return false;
+  if(filterTu||filterDen){
+    // Lọc theo ngày thì điểm chưa có thời gian lưu đương nhiên không thuộc khoảng
+    const d=ngayBanGhi(rec(r.stt).at);
+    if(!d) return false;
+    if(filterTu && d<filterTu) return false;
+    if(filterDen && d>filterDen) return false;
+  }
   if(query){
     const s=(r.duong+" "+r.sonha+" "+r.phuong+" "+r.loai+" "+r.stt+" "+(r.ma||"")).toLowerCase();
     if(!s.includes(query.toLowerCase())) return false;
   }
   return true;
 }
+/* Mô tả bộ lọc bằng lời, dùng cho bảng xuất và in lên đầu báo cáo — báo cáo chỉ
+   gồm một phần danh mục mà không ghi rõ phạm vi thì người đọc hiểu nhầm là toàn bộ. */
+function moTaLoc(){
+  const p=[];
+  if(filterDistrict!=="Tất cả") p.push(filterDistrict);
+  if(filterWard!=="Tất cả") p.push("phường "+filterWard);
+  if(filterStatus==="done") p.push("đã khảo sát");
+  if(filterStatus==="pending") p.push("chưa khảo sát");
+  if(filterLoai!=="Tất cả") p.push(filterLoai.toLowerCase());
+  if(filterPrio!=="Tất cả") p.push(filterPrio.toLowerCase());
+  if(filterTu&&filterDen) p.push("khảo sát từ "+ngayVN(filterTu)+" đến "+ngayVN(filterDen));
+  else if(filterTu) p.push("khảo sát từ "+ngayVN(filterTu));
+  else if(filterDen) p.push("khảo sát đến "+ngayVN(filterDen));
+  if(query) p.push('từ khóa "'+query+'"');
+  return p.join(" · ");
+}
+function ngayVN(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?(m[3]+"/"+m[2]+"/"+m[1]):s; }
 function renderList(){
   const list=document.getElementById("list"); list.innerHTML="";
   const all=RAW.filter(matches);
@@ -806,12 +928,13 @@ const COL={STT:0,MA:1,DIABAN:2,TEN:3,DUONG:4,SONHA:5,PHUONG:6,HATANG:7,
   ANH1:18,ANH2:19,ANH3:20,BY:21,AT:22,SERVER:23};
 function exportCsv(){
   // Tiêu đề cũng phải qua csvCell: "Loại trụ dừng, nhà chờ" có dấu phẩy, không bọc thì lệch cột.
+  const ds=dsXuat();
   const lines=[HEADERS.map(csvCell).join(",")];
-  RAW.forEach(r=>{ lines.push(rowArray(r).map(csvCell).join(",")); });
+  ds.forEach(r=>{ lines.push(rowArray(r).map(csvCell).join(",")); });
   const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="Khao_sat_chieu_sang_tram_dung_xe_buyt_"+stamp()+".csv"; a.click();
-  toast("Đã tạo file CSV.");
+  toast("Đã tạo file CSV — "+ds.length+" dòng.");
 }
 function csvCell(v){ v=(v==null?"":""+v); return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 
@@ -896,7 +1019,7 @@ const RONG_COT=[6,13,13,26,20,18,15,17,12,12,15,15,21,19,16,13,20,28,26,26,26,17
 
 function exportXlsx(){
   try{
-    const enc=new TextEncoder(), nC=HEADERS.length;
+    const enc=new TextEncoder(), nC=HEADERS.length, ds=dsXuat();
     const P=(name,xml)=>({name:name, data:enc.encode(xml)});
     const NS="http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     const NSR="http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -905,7 +1028,7 @@ function exportXlsx(){
     let sd='<row r="1" ht="34" customHeight="1">';
     HEADERS.forEach((h,i)=>{ sd+='<c r="'+colChu(i+1)+'1" s="1" t="inlineStr"><is><t>'+xmlEsc(h)+'</t></is></c>'; });
     sd+='</row>';
-    RAW.forEach((r,i)=>{
+    ds.forEach((r,i)=>{
       const hang=i+2, v=rowArray(r);
       sd+='<row r="'+hang+'">';
       for(let j=0;j<nC;j++){
@@ -918,7 +1041,7 @@ function exportXlsx(){
       sd+='</row>';
     });
 
-    const cuoi=colChu(nC), soHang=RAW.length+1;
+    const cuoi=colChu(nC), soHang=ds.length+1;
     const sheet=dau+'<worksheet xmlns="'+NS+'">'+
       '<dimension ref="A1:'+cuoi+soHang+'"/>'+
       '<sheetViews><sheetView tabSelected="1" workbookViewId="0">'+
@@ -976,7 +1099,7 @@ function exportXlsx(){
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download="Khao_sat_chieu_sang_tram_dung_xe_buyt_"+stamp()+".xlsx"; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),10000);
-    toast("Đã tạo file Excel — "+RAW.length+" dòng.");
+    toast("Đã tạo file Excel — "+ds.length+" dòng.");
   }catch(err){
     toast("Không tạo được file Excel.");
     alert("Không tạo được file Excel: "+err+"\n\nHãy dùng nút Tải file CSV thay thế.");
@@ -1135,6 +1258,24 @@ function updateExpSummary(){
   document.getElementById("expSummary").textContent="Đã khảo sát "+done+"/"+RAW.length+" vị trí. Dữ liệu lưu trên thiết bị này."+
     (nu?(" Còn "+nu+" điểm chưa lên Sheets."):" Tất cả đã lên Sheets.")+
     (np?(" Còn "+np+" ảnh chưa lên Drive."):"");
+
+  // Ô "chỉ xuất phần đang lọc" chỉ hiện khi thật sự có lọc, khỏi rối lúc xuất cả danh mục
+  const co=soLocDangDung()>0, wrap=document.getElementById("locXuatWrap");
+  wrap.classList.toggle("show", co);
+  if(co){
+    document.getElementById("locXuatDem").textContent=
+      "Chỉ xuất phần đang lọc — "+RAW.filter(matches).length+"/"+RAW.length+" vị trí";
+    document.getElementById("locXuatMo").textContent=moTaLoc();
+  }
+}
+/* Danh sách sẽ được xuất ra: theo bộ lọc đang chọn, hoặc toàn bộ danh mục. */
+function dsXuat(){
+  const cb=document.getElementById("cbLocXuat");
+  return (soLocDangDung()>0 && cb && cb.checked) ? RAW.filter(matches) : RAW;
+}
+function locDangApDung(){
+  const cb=document.getElementById("cbLocXuat");
+  return (soLocDangDung()>0 && cb && cb.checked) ? moTaLoc() : "";
 }
 
 /* ---------- helpers ---------- */
@@ -1171,13 +1312,32 @@ document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("btnCsv").onclick=exportCsv;
 document.getElementById("btnXlsx").onclick=exportXlsx;
 ["fD1","fD2"].forEach(id=>document.getElementById(id).addEventListener("input", veDeXuatDen));
+document.getElementById("btnLocThem").onclick=()=>{
+  const box=document.getElementById("locBox"), mo=box.classList.toggle("show");
+  document.getElementById("btnLocThem").setAttribute("aria-expanded", mo?"true":"false");
+};
+document.getElementById("btnLocXoa").onclick=xoaHetLoc;
+/* Chuyển bộ lọc sang trang báo cáo. Gửi thẳng DANH SÁCH STT chứ không gửi điều kiện
+   lọc — baocao.html khỏi phải chép lại logic lọc, và không bao giờ lệch với app. */
+document.getElementById("btnBaoCao").addEventListener("click",()=>{
+  try{
+    const mo=locDangApDung();
+    if(mo) localStorage.setItem("lavipco_ks_loc",
+      JSON.stringify({ mo:mo, stt:dsXuat().map(r=>r.stt) }));
+    else localStorage.removeItem("lavipco_ks_loc");
+  }catch(e){}
+});
+["locTu","locDen"].forEach(id=>document.getElementById(id).addEventListener("change",e=>{
+  if(id==="locTu") filterTu=e.target.value; else filterDen=e.target.value;
+  resetPaging(); veLocThem(); renderList(); updateExpSummary();
+}));
 
 try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
 /* baocao.html cần URL backend để tải ảnh Drive về nhúng vào file Word (Drive không
    cho JS đọc trực tiếp). Ghi lại mỗi lần mở app, cùng cách chia sẻ RAW ở trên —
    không dùng chung LS_URL vì key đó là bản đè tay, ghi vào sẽ khóa cứng DEFAULT_URL. */
 try{ localStorage.setItem("lavipco_ks_url_run", currentSyncUrl()); }catch(e){}
-renderChips(); renderWards(); renderList();
+renderChips(); renderWards(); veLocThem(); renderList();
 
 /* Có mạng trở lại hoặc vừa mở app → gửi nốt phần còn tồn, rồi đọc về trạng thái
    mới nhất trên Sheets (để thấy các điểm cán bộ khác đã khảo sát). */
