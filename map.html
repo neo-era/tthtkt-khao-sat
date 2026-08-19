@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0F2A43">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Bản đồ vị trí – Khảo sát chiếu sáng</title>
+
+<!-- Leaflet: THƯ VIỆN NGOÀI DUY NHẤT của cả repo, và CHỈ ở trang này.
+     index.html tuyệt đối không được dùng vì phải chạy offline ngoài hiện trường;
+     trang bản đồ thì đằng nào cũng cần mạng để tải ảnh nền nên không mất gì.
+     Có `integrity` để nội dung trên CDN đổi là trình duyệt chặn, không chạy bừa. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+  crossorigin="anonymous" referrerpolicy="no-referrer">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<style>
+  :root{ --ink:#0F2A43; --ink-2:#1B3D5C; --line:#E2E8F0; --bg:#EEF2F6; --card:#fff;
+    --muted:#64748B; --text:#0F2235; --primary:#1565C0; --green:#1E8E3E; --amber:#B45309; --red:#C62828; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:15px}
+  body{display:flex;flex-direction:column}
+  .dbar{flex:none;background:var(--ink);color:#fff;display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top) + 10px) 12px 10px}
+  .dbar a{background:rgba(255,255,255,.14);color:#fff;width:36px;height:36px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;flex:none;text-decoration:none}
+  .dbar .t{flex:1;min-width:0}
+  .dbar .t b{display:block;font-size:15px}
+  .dbar .t span{font-size:11.5px;color:#A9C2DA}
+  .loc{flex:none;background:var(--card);border-bottom:1px solid var(--line);padding:8px 10px;
+    display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}
+  .loc::-webkit-scrollbar{display:none}
+  .loc select{flex:none;padding:7px 9px;border:1px solid var(--line);border-radius:9px;
+    background:var(--card);color:var(--text);font:inherit;font-size:13px}
+  .loc .dem{flex:none;align-self:center;font-size:12.5px;color:var(--muted);white-space:nowrap;padding-left:4px}
+  #map{flex:1;min-height:0;background:#dfe6ec}
+  .chugiai{flex:none;background:var(--card);border-top:1px solid var(--line);
+    padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted)}
+  .chugiai i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px;
+    border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  .bao{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:500;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;
+    box-shadow:0 4px 16px rgba(0,0,0,.18);font-size:14px;max-width:80%;text-align:center}
+  /* popup */
+  .pop b{display:block;font-size:14px;color:var(--ink);margin-bottom:2px}
+  .pop .sub{font-size:12px;color:var(--muted);margin-bottom:7px}
+  .pop table{border-collapse:collapse;font-size:12.5px;margin-bottom:6px}
+  .pop td{padding:2px 0;vertical-align:top}
+  .pop td:first-child{color:var(--muted);padding-right:10px;white-space:nowrap}
+  .pop .nhan{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin:0 4px 4px 0}
+  .pop .n-ks{background:#E6F4EA;color:var(--green)}
+  .pop .n-ld{background:#DCF3E4;color:#166534}
+  .pop .n-u1{background:#FCE8E8;color:var(--red)}
+  .pop .n-nc{background:#E7E9FB;color:#3F4BB8}
+  .pop img{width:74px;height:74px;object-fit:cover;border:1px solid var(--line);border-radius:6px;margin:2px 3px 0 0}
+  .pop a{color:var(--primary);font-weight:700;text-decoration:none;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<header class="dbar">
+  <a href="index.html" aria-label="Về app">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+  <div class="t"><b>Bản đồ vị trí khảo sát</b><span id="nguon">Đang tải dữ liệu…</span></div>
+</header>
+
+<div class="loc">
+  <select id="fDiaban"></select>
+  <select id="fPhuong"></select>
+  <select id="fHaTang"></select>
+  <select id="fTrangThai"></select>
+  <select id="fPrio"></select>
+  <span class="dem" id="dem">—</span>
+</div>
+
+<div id="map"></div>
+
+<div class="chugiai">
+  <span><i style="background:#1565C0"></i>Đã khảo sát</span>
+  <span><i style="background:#C62828"></i>Ưu tiên 1</span>
+  <span><i style="background:#1E8E3E"></i>Đã lắp đặt</span>
+  <span id="thieu"></span>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   Trang bản đồ — CHỈ ĐỌC, không sửa dữ liệu.
+
+   Nguồn dữ liệu: đọc thẳng `?action=data` từ Apps Script nên mở trên máy nào cũng
+   thấy đủ, không cần mở app khảo sát trước. Mất mạng thì rơi về bản trong
+   localStorage của máy này.
+
+   Cột đọc theo TÊN tiêu đề, y như pullFromSheets trong index.html — đọc theo vị
+   trí đã từng làm lệch toàn bộ dữ liệu khi bảng trên Sheet còn bố cục cũ.
+--------------------------------------------------------------------------- */
+const LS_URL="lavipco_ks_url_v1", LS_RUN="lavipco_ks_url_run",
+      LS_RAW="lavipco_ks_raw_v1", LS_DATA="lavipco_ks_data_v3";
+
+function backendUrl(){
+  try{ return (localStorage.getItem(LS_URL)||localStorage.getItem(LS_RUN)||"").trim(); }
+  catch(e){ return ""; }
+}
+function bao(t){
+  let el=document.getElementById("bao");
+  if(!el){ el=document.createElement("div"); el.id="bao"; el.className="bao"; document.body.appendChild(el); }
+  el.innerHTML=t;
+}
+function xoaBao(){ const el=document.getElementById("bao"); if(el) el.remove(); }
+function esc(s){ return (s==null?"":""+s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function so(v){ const s=String(v==null?"":v).trim().replace(",","."); const x=parseFloat(s);
+  return /^-?\d+(\.\d+)?$/.test(s)&&!isNaN(x) ? x : null; }
+
+/* Một điểm sau khi gom từ Sheet hoặc localStorage */
+function diem(o){
+  return { stt:o.stt, ma:o.ma||"", diaban:o.diaban||"", ten:o.ten||"", duong:o.duong||"",
+    sonha:o.sonha||"", phuong:o.phuong||"", loai:o.loai||"",
+    lat:so(o.lat), lng:so(o.lng), d1:o.d1||"", d2:o.d2||"", nhacho:o.nhacho||"",
+    vitri:o.vitri||"", loaitru:o.loaitru||"", prio:o.prio||"", den:o.den||"", note:o.note||"",
+    anh:(o.anh||[]).filter(Boolean), by:o.by||"", at:o.at||"",
+    ldTru:o.ldTru||"", ldNgay:o.ldNgay||"", ldLoai:o.ldLoai||"", ldXong:!!o.ldXong };
+}
+function laNhaCho(d){ return /^Nhà chờ/i.test(d.loai||""); }
+function daKS(d){ return !!(d.lat!==null||d.d1||d.d2||d.nhacho||d.vitri||d.loaitru||d.prio||d.note||d.anh.length); }
+
+/* ---------- đọc từ Google Sheet ---------- */
+const LD_BAT_BUOC=["Trụ chiếu sáng số","Trước số nhà","Tủ điều khiển","Số lượng cần đèn",
+  "Số lượng đèn pha","Loại đèn","Ngày lắp đặt"];
+function tuSheet(js){
+  const vt={}, chuan=s=>String(s==null?"":s).replace(/\s+/g," ").trim();
+  (js.head||[]).forEach((h,i)=>{ const t=chuan(h); if(t&&!(t in vt)) vt[t]=i; });
+  if(!("Thời gian lưu" in vt) && ("Thời gian lưu (máy)" in vt)) vt["Thời gian lưu"]=vt["Thời gian lưu (máy)"];
+  if(!("STT" in vt) || !("Vĩ độ" in vt)) throw new Error("Bảng trên Google Sheet thiếu cột STT hoặc Vĩ độ.");
+  const o=(v,ten)=>ten in vt ? String(v[vt[ten]]||"") : "";
+  return js.values.map(v=>{
+    const stt=parseInt(o(v,"STT"),10); if(!stt) return null;
+    const anh=["Ảnh 1","Ảnh 2","Ảnh 3"].map(t=>o(v,t)).filter(u=>u.indexOf("http")===0);
+    const ldXong = LD_BAT_BUOC.every(t=>o(v,t).trim()) &&
+      ["Ảnh lắp đặt 1","Ảnh lắp đặt 2","Ảnh lắp đặt 3"].some(t=>o(v,t).indexOf("http")===0);
+    return diem({ stt:stt, ma:o(v,"Mã điểm dừng"), diaban:o(v,"Địa bàn"), ten:o(v,"Tên vị trí"),
+      duong:o(v,"Tuyến đường"), sonha:o(v,"Số nhà/Vị trí"), phuong:o(v,"Phường/Xã"), loai:o(v,"Hạ tầng"),
+      lat:o(v,"Vĩ độ"), lng:o(v,"Kinh độ"),
+      d1:o(v,"KC trụ đèn → trụ dừng (m)"), d2:o(v,"KC trụ dừng → trụ đèn kế (m)"),
+      nhacho:o(v,"Loại trụ dừng, nhà chờ"), vitri:o(v,"Vị trí trụ so với nhà chờ"),
+      loaitru:o(v,"Loại trụ đèn"), prio:o(v,"Ưu tiên đề xuất"), den:o(v,"Bộ đèn pha đề xuất"),
+      note:o(v,"Ghi chú thêm"), anh:anh, by:o(v,"Người khảo sát"), at:o(v,"Thời gian lưu"),
+      ldTru:o(v,"Trụ chiếu sáng số"), ldNgay:o(v,"Ngày lắp đặt"), ldLoai:o(v,"Loại đèn"), ldXong:ldXong });
+  }).filter(Boolean);
+}
+
+/* ---------- đọc từ localStorage (khi mất mạng) ---------- */
+function tuMay(){
+  let raw=[], data={};
+  try{ raw=JSON.parse(localStorage.getItem(LS_RAW))||[]; }catch(e){}
+  try{ data=JSON.parse(localStorage.getItem(LS_DATA))||{}; }catch(e){}
+  if(!raw.length) return [];
+  return raw.map(r=>{
+    const c=data[r.stt]||{}, l=c.ld||{};
+    const anh=(c.photos||[]).filter(Boolean)
+      .map(p=>p.url||(p.id?("https://drive.google.com/file/d/"+p.id+"/view"):"")).filter(Boolean);
+    const ldAnh=(l.photos||[]).filter(p=>p&&(p.id||p.url));
+    const ldXong=["tru","truocSo","tu","can","pha","loai","ngay"].every(k=>String(l[k]||"").trim()) && ldAnh.length>0;
+    return diem({ stt:r.stt, ma:r.ma, diaban:r.diaban, ten:r.ten, duong:r.duong, sonha:r.sonha,
+      phuong:r.phuong, loai:r.loai, lat:c.lat, lng:c.lng, d1:c.d1, d2:c.d2, nhacho:c.nhacho,
+      vitri:c.vitri, loaitru:c.loaitru, prio:c.prio, note:c.note, anh:anh, by:c.by, at:c.at,
+      ldTru:l.tru, ldNgay:l.ngay, ldLoai:l.loai, ldXong:ldXong });
+  });
+}
+
+/* ---------- bản đồ ---------- */
+let map, lopDiem, DIEM=[];
+const MAU={ ld:"#1E8E3E", u1:"#C62828", ks:"#1565C0" };
+function mauCua(d){ return d.ldXong ? MAU.ld : (d.prio==="Ưu tiên 1" ? MAU.u1 : MAU.ks); }
+
+function anhNho(u){
+  const m=/[-\w]{25,}/.exec(u||"");
+  return m ? ("https://drive.google.com/thumbnail?id="+m[0]+"&sz=w200") : "";
+}
+function noiDungPopup(d){
+  const nhan=[];
+  if(d.ldXong) nhan.push('<span class="nhan n-ld">Đã lắp đặt</span>');
+  if(daKS(d)) nhan.push('<span class="nhan n-ks">Đã khảo sát</span>');
+  if(d.prio==="Ưu tiên 1") nhan.push('<span class="nhan n-u1">Ưu tiên 1</span>');
+  if(laNhaCho(d)) nhan.push('<span class="nhan n-nc">Nhà chờ</span>');
+
+  const hang=[];
+  const them=(k,v)=>{ if(v) hang.push("<tr><td>"+k+"</td><td>"+esc(v)+"</td></tr>"); };
+  them("Hạ tầng", d.loai);
+  them("KC trụ đèn → trụ dừng", d.d1 && (d.d1+" m"));
+  them("KC trụ dừng → trụ đèn kế", d.d2 && (d.d2+" m"));
+  them("Loại trụ dừng", d.nhacho);
+  them("Vị trí trụ", d.vitri);
+  them("Loại trụ đèn", d.loaitru);
+  them("Ưu tiên", d.prio);
+  them("Bộ đèn đề xuất", d.den);
+  them("Ghi chú", d.note);
+  if(d.ldXong || d.ldTru || d.ldNgay){
+    them("Trụ chiếu sáng", d.ldTru);
+    them("Ngày lắp đặt", d.ldNgay);
+    them("Đèn đã lắp", d.ldLoai);
+  }
+  them("Người khảo sát", d.by);
+
+  const anh=d.anh.map(u=>{ const t=anhNho(u);
+    return t ? '<a href="'+esc(u)+'" target="_blank" rel="noopener"><img src="'+esc(t)+'" alt="Ảnh hiện trường" loading="lazy"></a>' : ""; }).join("");
+
+  return '<div class="pop">'+
+    '<b>'+esc(d.duong||d.ten||("Điểm "+d.stt))+(d.sonha?(" – "+esc(d.sonha)):"")+'</b>'+
+    '<div class="sub">STT '+d.stt+(d.ma?(" · "+esc(d.ma)):"")+' · '+esc(d.phuong)+' · '+esc(d.diaban)+'</div>'+
+    (nhan.length?('<div>'+nhan.join("")+'</div>'):"")+
+    (hang.length?('<table>'+hang.join("")+'</table>'):"")+
+    anh+
+    '<div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query='+
+      d.lat+','+d.lng+'" target="_blank" rel="noopener">Mở trong Google Maps →</a></div>'+
+  '</div>';
+}
+
+function veChon(id, ds, nhan){
+  const sel=document.getElementById(id);
+  sel.innerHTML="";
+  ds.forEach(v=>{ const o=document.createElement("option"); o.value=v;
+    o.textContent = v==="Tất cả" ? nhan : v; sel.appendChild(o); });
+  sel.onchange=veLai;
+}
+function locHienTai(){
+  const g=id=>document.getElementById(id).value;
+  return { db:g("fDiaban"), ph:g("fPhuong"), ht:g("fHaTang"), tt:g("fTrangThai"), pr:g("fPrio") };
+}
+function hop(d,f){
+  if(f.db!=="Tất cả" && d.diaban!==f.db) return false;
+  if(f.ph!=="Tất cả" && d.phuong!==f.ph) return false;
+  if(f.ht!=="Tất cả" && (f.ht==="Nhà chờ")!==laNhaCho(d)) return false;
+  if(f.tt==="Đã lắp đặt" && !d.ldXong) return false;
+  if(f.tt==="Chưa lắp đặt" && d.ldXong) return false;
+  if(f.tt==="Đã khảo sát" && !daKS(d)) return false;
+  if(f.pr!=="Tất cả" && d.prio!==f.pr) return false;
+  return true;
+}
+function veLai(){
+  const f=locHienTai();
+  // Ô phường chỉ liệt kê phường thuộc địa bàn đang chọn
+  const phuongs=["Tất cả"].concat([...new Set(DIEM
+    .filter(d=>f.db==="Tất cả"||d.diaban===f.db).map(d=>d.phuong).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"vi")));
+  const selPh=document.getElementById("fPhuong");
+  if(phuongs.length!==selPh.options.length){
+    const giu=selPh.value;
+    veChon("fPhuong",phuongs,"Tất cả phường/xã");
+    selPh.value = phuongs.indexOf(giu)>=0 ? giu : "Tất cả";
+  }
+
+  const hien=DIEM.filter(d=>hop(d,f));
+  const coToaDo=hien.filter(d=>d.lat!==null && d.lng!==null);
+
+  lopDiem.clearLayers();
+  coToaDo.forEach(d=>{
+    L.circleMarker([d.lat,d.lng],{ radius:6, color:"#fff", weight:2, opacity:1,
+      fillColor:mauCua(d), fillOpacity:.95 })
+      .bindPopup(noiDungPopup(d),{maxWidth:290})
+      .addTo(lopDiem);
+  });
+
+  document.getElementById("dem").textContent="Hiện "+coToaDo.length+"/"+hien.length+" điểm";
+  const thieu=hien.length-coToaDo.length;
+  document.getElementById("thieu").textContent =
+    thieu ? (thieu+" điểm chưa có tọa độ nên không lên bản đồ") : "";
+
+  if(coToaDo.length){
+    const b=L.latLngBounds(coToaDo.map(d=>[d.lat,d.lng]));
+    map.fitBounds(b,{padding:[30,30],maxZoom:17});
+  }
+}
+
+function dungBanDo(nguon){
+  document.getElementById("nguon").textContent=nguon;
+  map=L.map("map",{zoomControl:true}).setView([10.776,106.700],13);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  lopDiem=L.layerGroup().addTo(map);
+
+  const dsDb=["Tất cả"].concat([...new Set(DIEM.map(d=>d.diaban).filter(Boolean))]);
+  veChon("fDiaban",dsDb,"Tất cả địa bàn");
+  veChon("fPhuong",["Tất cả"],"Tất cả phường/xã");
+  veChon("fHaTang",["Tất cả","Trụ dừng","Nhà chờ"],"Tất cả hạ tầng");
+  veChon("fTrangThai",["Tất cả","Đã khảo sát","Đã lắp đặt","Chưa lắp đặt"],"Tất cả trạng thái");
+  veChon("fPrio",["Tất cả","Ưu tiên 1","Ưu tiên 2"],"Tất cả mức ưu tiên");
+  veLai();
+  xoaBao();
+}
+
+/* ---------- nạp dữ liệu ---------- */
+(function(){
+  if(typeof L==="undefined"){
+    bao("<b>Không tải được thư viện bản đồ.</b><br>Trang này cần có mạng. "+
+        "Hãy kiểm tra kết nối rồi tải lại trang.");
+    return;
+  }
+  bao("Đang tải dữ liệu từ Google Sheets…");
+  const url=backendUrl();
+  const xong=(ds,nguon)=>{
+    DIEM=ds;
+    if(!DIEM.length){
+      bao("<b>Chưa có dữ liệu để hiển thị.</b><br>Hãy mở "+
+          '<a href="index.html">app khảo sát</a> ít nhất một lần trên máy này.');
+      return;
+    }
+    dungBanDo(nguon);
+  };
+  const veMay=(vi)=>{
+    const ds=tuMay();
+    if(ds.length) xong(ds,"Dữ liệu lưu trên máy này"+(vi?(" · "+vi):""));
+    else bao("<b>Không đọc được dữ liệu.</b><br>"+esc(vi||"")+
+             '<br>Hãy mở <a href="index.html">app khảo sát</a> khi có mạng rồi quay lại.');
+  };
+  if(!url || !navigator.onLine){ veMay(url?"đang ngoại tuyến":"chưa có địa chỉ backend"); return; }
+  fetch(url+"?action=data")
+    .then(r=>r.json())
+    .then(js=>{
+      if(!js||!js.ok||!Array.isArray(js.values)) throw new Error("Máy chủ không trả về dữ liệu.");
+      xong(tuSheet(js),"Đọc từ Google Sheets · "+js.values.length+" dòng");
+    })
+    .catch(e=>veMay(String(e.message||e)));
+})();
+</script>
+</body>
+</html>

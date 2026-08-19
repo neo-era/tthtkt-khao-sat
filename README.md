@@ -11,6 +11,7 @@
 | Thành phần | Tập tin | Công dụng |
 |---|---|---|
 | **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 661 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất Excel/CSV, đồng bộ. |
+| **Bản đồ vị trí** | `map.html` | Trang riêng: vẽ toàn bộ điểm có tọa độ lên bản đồ, popup xem thông tin từng vị trí. Cần có mạng. |
 | **Backend Google Sheets** | `apps-script/Code.gs` | Nhận dữ liệu từ app, lưu vào Google Sheet (có chống trùng theo STT). |
 | **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc (3.754 dòng); `tools/build_raw.py` lọc ra 610 trụ dừng trong phạm vi và nạp vào `index.html`; `tools/them_nha_cho_2858.py` chèn thêm 51 nhà chờ. |
 | **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | ⚠️ Phiếu Excel cũ, **vẫn theo danh mục 107 vị trí đã bỏ** — cần dựng lại nếu còn dùng. |

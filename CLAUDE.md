@@ -31,7 +31,7 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 
 - **Báo phiên bản mới**: `checkNewVersion()` gửi `HEAD index.html` (`cache:'no-store'`) rồi so `ETag`/`Last-Modified` với lần đầu trong phiên; khác nhau = đã deploy bản mới → hiện thanh `#updBar`. Dùng **HEAD** có chủ đích: nó không đi qua service worker (SW chỉ chặn GET) và không tải lại 160KB HTML. Cơ chế này **tự phát hiện mọi lần deploy, không cần bump gì cả**. Bấm Cập nhật mới `location.reload()` — tuyệt đối không tự tải lại, vì sẽ mất phần cán bộ đang gõ dở; nếu màn chi tiết đang mở thì `confirm()` cảnh báo trước.
 - **`sw.js` dùng network-first, KHÔNG đổi sang cache-first.** App là 1 file HTML nhúng sẵn 610 vị trí và được sửa/deploy liên tục; ưu tiên cache là cán bộ kẹt ở bản cũ mà không hay. Sửa `sw.js` phải **tăng `VERSION`** để cache cũ bị dọn. Request khác origin (Apps Script, Drive) và mọi POST **không được đi qua cache**.
-- **Không thêm dependency ngoài.** App phải chạy offline ngoài hiện trường → không thêm `<script src>` từ CDN, không npm, không framework. Mọi thứ inline trong `index.html`. (Trang dashboard bản đồ tương lai nếu dùng Leaflet thì để **trang riêng**, không nhét vào app khảo sát chính.)
+- **Không thêm dependency ngoài.** App phải chạy offline ngoài hiện trường → không thêm `<script src>` từ CDN, không npm, không framework. Mọi thứ inline trong `index.html`. **Ngoại lệ duy nhất: `map.html`** dùng Leaflet từ CDN — trang riêng, đằng nào cũng cần mạng để tải ảnh nền nên không mất gì; `index.html` thì tuyệt đối không được đụng tới.
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
@@ -156,6 +156,15 @@ File `.xlsx` thật (không phải CSV đổi đuôi), đóng gói tay vì luậ
 - `lavipco_ks_raw_v1`  — bản sao danh mục `RAW` do `index.html` ghi mỗi lần mở; `baocao.html` đọc lại để dựng báo cáo mà không cần nhúng lại RAW.
 - `lavipco_ks_url_run` — URL backend đang dùng (`currentSyncUrl()`), cũng do `index.html` ghi mỗi lần mở; `baocao.html` đọc để tải ảnh Drive về nhúng vào file Word.
 
+### Trang bản đồ (`map.html`)
+Trang **chỉ đọc**, tách riêng khỏi app khảo sát. Đọc thẳng `?action=data` từ Apps Script nên mở trên máy nào cũng thấy đủ, không cần mở app trước; mất mạng thì rơi về `lavipco_ks_raw_v1` + `lavipco_ks_data_v3` trên máy đó.
+
+- **Cột đọc theo TÊN tiêu đề** giống `pullFromSheets`, không theo vị trí — đọc theo vị trí đã từng làm lệch toàn bộ dữ liệu khi bảng trên Sheet còn bố cục cũ.
+- Chỉ vẽ điểm **có toạ độ hợp lệ**; số điểm thiếu toạ độ ghi rõ ở chú giải chứ không lặng lẽ bỏ. Thực tế 590/609 dòng có toạ độ.
+- Màu chấm: xanh lá = đã lắp đặt, đỏ = Ưu tiên 1, xanh dương = đã khảo sát. Popup gồm địa chỉ, nhãn trạng thái, số liệu khảo sát, thông tin lắp đặt, ảnh thu nhỏ và link mở Google Maps.
+- Lọc theo địa bàn / phường / hạ tầng / trạng thái / ưu tiên; ô phường tự thu theo địa bàn đang chọn.
+- **Leaflet nạp từ CDN kèm `integrity`** (SRI): nội dung trên CDN đổi là trình duyệt chặn, không chạy bừa. Đổi phiên bản Leaflet thì phải tính lại mã băm.
+
 ### Trang báo cáo (`baocao.html`)
 Trang in được độc lập, đọc `lavipco_ks_raw_v1` + `lavipco_ks_data_v3` từ localStorage (cùng origin), tự tính tổng quan / phân bố theo địa bàn–phường/xã / thống kê loại nhà chờ – vị trí trụ – loại trụ đèn / khoảng cách trung bình + mức ưu tiên / bảng chi tiết nhóm theo phường/xã / phụ lục vị trí chưa khảo sát / **phụ lục ảnh hiện trường** / kết luận.
 
@@ -236,6 +245,5 @@ Chi tiết đầy đủ trong `README.md`.
 
 ## Việc có thể làm tiếp (gợi ý, chưa làm)
 
-- Trang `map.html` riêng: đọc `?action=data` từ Apps Script, vẽ 610 điểm lên Leaflet + OSM, lọc theo trạng thái/ưu tiên.
 - Dựng lại biểu mẫu Excel theo danh mục mới (610 vị trí).
 - Báo cáo tổng hợp tự động theo địa bàn.

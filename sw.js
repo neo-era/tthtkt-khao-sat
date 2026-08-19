@@ -9,12 +9,13 @@
  *
  *  ĐỔI CODE THÌ NHỚ TĂNG SỐ Ở "VERSION" để cache cũ được dọn.
  * ==========================================================================*/
-var VERSION = 'ks-v1';
+var VERSION = 'ks-v2';
 
 var SHELL = [
   './',
   './index.html',
   './baocao.html',
+  './map.html',
   './huongdan.html',
   './manifest.json',
   './icons/icon-192.png',
