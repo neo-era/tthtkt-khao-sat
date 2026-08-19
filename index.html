@@ -795,11 +795,12 @@ const HEADERS=["STT","Mã điểm dừng","Địa bàn","Tên vị trí","Tuyế
   "Loại trụ dừng, nhà chờ","Vị trí trụ so với nhà chờ","Loại trụ đèn",
   "Ưu tiên đề xuất","Bộ đèn pha đề xuất","Ghi chú thêm",
   "Ảnh 1","Ảnh 2","Ảnh 3","Người khảo sát","Thời gian lưu"];
-/* Chỉ số cột, để ĐÚNG cạnh HEADERS và rowArray cho ba thứ không bao giờ lệch nhau.
-   pullFromSheets đọc Sheet theo vị trí cột; trước đây rải chỉ số cứng (v[7], v[15]…)
-   khắp nơi nên chèn thêm một cột là phải dịch 20 chỗ, sai một chỗ thì dữ liệu vào
-   nhầm trường mà không có lỗi nào báo. Đổi bố cục cột thì sửa đúng bảng này.
-   Cột SERVER do Code.gs thêm, app không gửi lên. */
+/* Bố cục cột của chiều GHI LÊN (rowArray), để ngay cạnh HEADERS cho hai thứ không
+   lệch nhau. Cột SERVER do Code.gs thêm, app không gửi lên.
+
+   Chiều ĐỌC VỀ (pullFromSheets) KHÔNG dùng bảng này mà dò theo tên tiêu đề —
+   xem doViTriCot(). Lý do: đọc cứng theo chỉ số thì bảng trên Sheet còn bố cục cũ
+   là mọi trường lệch một nấc, dữ liệu hiện trường bị ghi đè sai mà không báo gì. */
 const COL={STT:0,MA:1,DIABAN:2,TEN:3,DUONG:4,SONHA:5,PHUONG:6,HATANG:7,
   LAT:8,LNG:9,D1:10,D2:11,NHACHO:12,VITRI:13,LOAITRU:14,PRIO:15,DEN:16,NOTE:17,
   ANH1:18,ANH2:19,ANH3:20,BY:21,AT:22,SERVER:23};
@@ -1007,35 +1008,68 @@ function unsynced(){ return RAW.filter(r=>isDone(r.stt)&&!rec(r.stt).sync); }
    máy kia đã làm. Đọc ?action=data rồi trộn vào store.
    Nguyên tắc: KHÔNG bao giờ đè lên thay đổi cục bộ chưa gửi được lên Sheets. */
 function driveIdFromUrl(u){ const m=/\/d\/([-\w]{10,})/.exec(u||""); return m?m[1]:""; }
+
+/* Dò vị trí cột trên Sheet theo TÊN tiêu đề, không theo chỗ ngồi.
+   Trước đây đọc cứng theo chỉ số nên khi bảng trên Sheet còn bố cục cũ (thiếu cột
+   mới) là mọi trường lệch một nấc: vĩ độ nhận kinh độ, người khảo sát nhận mốc
+   thời gian… mà không có lỗi nào báo, dữ liệu hiện trường cứ thế bị ghi đè sai.
+   Đọc theo tên thì bảng thiếu cột vẫn về đúng chỗ, còn thiếu cột BẮT BUỘC thì thà
+   dừng lại báo lỗi chứ không trộn bừa. */
+const COT_BAT_BUOC=["STT","Vĩ độ","Kinh độ","KC trụ đèn → trụ dừng (m)","KC trụ dừng → trụ đèn kế (m)",
+  "Loại trụ dừng, nhà chờ","Vị trí trụ so với nhà chờ","Loại trụ đèn","Ưu tiên đề xuất",
+  "Ghi chú thêm","Ảnh 1","Ảnh 2","Ảnh 3","Người khảo sát","Thời gian lưu"];
+function doViTriCot(head){
+  const vt={}, chuan=s=>String(s==null?"":s).replace(/\s+/g," ").trim();
+  (head||[]).forEach((h,i)=>{ const t=chuan(h); if(t && !(t in vt)) vt[t]=i; });
+  // Cột "Thời gian lưu" backend đặt tên "Thời gian lưu (máy)"; app gửi lên là "Thời gian lưu".
+  if(!("Thời gian lưu" in vt) && ("Thời gian lưu (máy)" in vt)) vt["Thời gian lưu"]=vt["Thời gian lưu (máy)"];
+  const thieu=COT_BAT_BUOC.filter(c=>!(c in vt));
+  return { vt:vt, thieu:thieu };
+}
+
 function pullFromSheets(silent){
   if(!navigator.onLine) return Promise.resolve(0);
   return fetch(currentSyncUrl()+"?action=data")
     .then(res=>res.json())
     .then(js=>{
       if(!js||!js.ok||!Array.isArray(js.values)) throw new Error("Không đọc được dữ liệu từ Sheets.");
+      const map=doViTriCot(js.head);
+      if(map.thieu.length){
+        const e=new Error("Google Sheet thiếu cột: "+map.thieu.join(", ")+
+          ". Chạy hàm nangCapBang trong Apps Script rồi mở lại app.");
+        e.lechCot=true;                    // lỗi cấu hình, phải báo cả khi chạy ngầm
+        throw e;
+      }
+      const C=map.vt, oCot=(v,ten)=>ten in C ? v[C[ten]] : "";
       let n=0;
       const onSheet={};
-      js.values.forEach(v=>{ const s=parseInt(v[COL.STT],10); if(s) onSheet[s]=true; });
+      js.values.forEach(v=>{ const s=parseInt(oCot(v,"STT"),10); if(s) onSheet[s]=true; });
       js.values.forEach(v=>{
-        const stt=parseInt(v[COL.STT],10); if(!stt) return;
+        const stt=parseInt(oCot(v,"STT"),10); if(!stt) return;
         const cur=rec(stt);
         // Bản trên máy đang có sửa đổi chưa lên Sheets (hoặc ảnh chưa lên Drive) → giữ nguyên
         if(isDone(stt) && !cur.sync) return;
         if((cur.photos||[]).some(p=>p&&p.d&&!p.id)) return;
 
         const ph=[];
-        [COL.ANH1,COL.ANH2,COL.ANH3].forEach(i=>{
-          const u=String(v[i]||"").trim();
+        ["Ảnh 1","Ảnh 2","Ảnh 3"].forEach(ten=>{
+          const u=String(oCot(v,ten)||"").trim();
           if(u.indexOf("http")===0) ph.push({d:"",id:driveIdFromUrl(u),url:u});
         });
         const next={
-          lat:String(v[COL.LAT]||""), lng:String(v[COL.LNG]||""),
+          lat:String(oCot(v,"Vĩ độ")||""), lng:String(oCot(v,"Kinh độ")||""),
           acc:cur.acc||"", gpsAt:cur.gpsAt||"",
-          d1:String(v[COL.D1]||""),  d2:String(v[COL.D2]||""),
-          nhacho:String(v[COL.NHACHO]||""), vitri:String(v[COL.VITRI]||""), loaitru:String(v[COL.LOAITRU]||""),
-          prio:String(v[COL.PRIO]||""),     note:String(v[COL.NOTE]||""),
-          by:String(v[COL.BY]||""),         at:String(v[COL.AT]||""),
-          photos:ph, sync:String(v[COL.SERVER]||"")||"đã có trên Sheets"
+          d1:String(oCot(v,"KC trụ đèn → trụ dừng (m)")||""),
+          d2:String(oCot(v,"KC trụ dừng → trụ đèn kế (m)")||""),
+          nhacho:String(oCot(v,"Loại trụ dừng, nhà chờ")||""),
+          vitri:String(oCot(v,"Vị trí trụ so với nhà chờ")||""),
+          loaitru:String(oCot(v,"Loại trụ đèn")||""),
+          prio:String(oCot(v,"Ưu tiên đề xuất")||""),
+          note:String(oCot(v,"Ghi chú thêm")||""),
+          by:String(oCot(v,"Người khảo sát")||""),
+          at:String(oCot(v,"Thời gian lưu")||""),
+          // Bảng chưa có cột thời gian server thì vẫn coi là đã lên Sheets
+          photos:ph, sync:String(oCot(v,"Thời gian nhận (server)")||"")||"đã có trên Sheets"
         };
         // Dòng rỗng trên Sheet thì bỏ qua, đừng tạo bản ghi rác
         if(!(next.lat||next.d1||next.d2||next.nhacho||next.vitri||next.loaitru||next.prio||next.note||ph.length)) return;
@@ -1071,7 +1105,14 @@ function pullFromSheets(silent){
       else if(!silent) toast("Dữ liệu đã khớp với Google Sheets.");
       return n+del;
     })
-    .catch(()=>{ if(!silent) toast("Chưa đọc được dữ liệu từ Google Sheets."); return 0; });
+    .catch(err=>{
+      /* Bảng lệch bố cục cột thì phải báo CẢ khi chạy ngầm: im lặng là cán bộ cứ
+         tưởng dữ liệu đã khớp, trong khi thật ra app không đọc được gì. Mất mạng
+         thì vẫn im như cũ, chuyện đó bình thường ngoài hiện trường. */
+      if(err && err.lechCot) toast(err.message);
+      else if(!silent) toast("Chưa đọc được dữ liệu từ Google Sheets.");
+      return 0;
+    });
 }
 /* Gửi phần còn tồn lên trước, rồi đọc về để thấy phần người khác đã khảo sát */
 function syncBothWays(silent){

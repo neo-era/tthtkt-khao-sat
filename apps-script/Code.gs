@@ -79,6 +79,16 @@ function doPost(e) {
     var rows = Array.isArray(payload) ? payload : [payload];
 
     var sheet = getSheet_();
+
+    // Bảng còn bố cục cũ mà cứ ghi theo vị trí thì dữ liệu vào nhầm cột và ĐÈ MẤT
+    // dòng khảo sát thật. Thà từ chối: app giữ nguyên nhãn "Chưa đồng bộ" và gửi
+    // lại sau, không mất gì.
+    var thieu = cotConThieu_(sheet);
+    if (thieu.length) {
+      return jsonOut_({ ok: false, error: 'Bảng trên Google Sheet thiếu cột: ' +
+        thieu.join(', ') + '. Chạy hàm nangCapBang một lần rồi đồng bộ lại.' });
+    }
+
     var sttToRow = buildSttIndex_(sheet);   // { '12': 5, ... } STT -> số dòng trên sheet
     var now = nowStr_();
     var inserted = 0, updated = 0;
@@ -126,8 +136,8 @@ function doGet(e) {
   var sheet = getSheet_();
   var action = (e && e.parameter && e.parameter.action) || 'status';
 
-  // Trả head + values (mảng theo đúng thứ tự cột) để app đọc theo VỊ TRÍ cột,
-  // không phụ thuộc chữ tiêu đề — đổi chữ tiêu đề không làm hỏng đồng bộ ngược.
+  // Trả head + values. App dò cột theo TÊN trong `head` chứ không theo vị trí, nên
+  // bảng thiếu/thừa cột vẫn đọc đúng trường. Vì vậy `head` là bắt buộc, đừng bỏ đi.
   if (action === 'data') {
     var values = sheet.getDataRange().getValues();
     var head = values.shift() || [];
@@ -346,6 +356,18 @@ function getSheet_() {
     sheet.setFrozenRows(1);
   }
   return sheet;
+}
+
+/**
+ * Trả về danh sách tiêu đề trong HEADERS mà bảng hiện tại chưa có (đúng thứ tự).
+ * Rỗng = bảng đã khớp bố cục, ghi theo vị trí là an toàn.
+ */
+function cotConThieu_(sheet) {
+  var lastCol = Math.max(1, sheet.getLastColumn());
+  var cur = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (v) {
+    return String(v === null || v === undefined ? '' : v).replace(/\s+/g, ' ').trim();
+  });
+  return HEADERS.filter(function (h, i) { return cur[i] !== h; });
 }
 
 function buildSttIndex_(sheet) {
