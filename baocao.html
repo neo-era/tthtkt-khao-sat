@@ -162,6 +162,20 @@ function canCuDen(d1,d2){
          khoang+" · H "+d.cao+" · α 5 – 15°";
 }
 
+/* Giai đoạn 2 — lắp đặt. Bản sao rút gọn của quy tắc trong index.html. */
+const LD_TRUONG=[["tru","Trụ chiếu sáng số"],["truocSo","Trước số nhà"],["tu","Tủ điều khiển"],
+  ["can","Số lượng cần đèn"],["pha","Số lượng đèn pha"],["loai","Loại đèn"],["ngay","Ngày lắp đặt"]];
+function ldCua(c){ return (c && c.ld) ? c.ld : {}; }
+function anhLD(c){ const o=ldCua(c); return Array.isArray(o.photos)?o.photos.filter(Boolean):[]; }
+function coLapDat(c){
+  const o=ldCua(c);
+  return LD_TRUONG.some(([k])=>String(o[k]||"").trim()) || anhLD(c).length>0;
+}
+function daLapDat(c){
+  const o=ldCua(c);
+  return LD_TRUONG.every(([k])=>String(o[k]||"").trim()) && anhLD(c).length>0;
+}
+
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
 function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v3"))||{}; }catch(e){ return {}; } }
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
@@ -338,6 +352,25 @@ function render(){
   });
   if(!anh) anh='<p><i>Chưa có ảnh hiện trường nào được đính kèm.</i></p>';
 
+  // Bảng lắp đặt theo mẫu — chỉ những vị trí đã có dữ liệu lắp đặt (kể cả đang dở)
+  const dsLD=RAW.filter(r=>coLapDat(rec(STORE,r.stt)));
+  const soXongLD=RAW.filter(r=>daLapDat(rec(STORE,r.stt))).length;
+  const soDangLD=dsLD.length-soXongLD;
+  let ldRows=dsLD.map(r=>{
+    const c=rec(STORE,r.stt), o=ldCua(c), l=photoList({photos:anhLD(c)});
+    const anh=l.length?('<div class="thumbs">'+l.map(p=>photoImg(p,200)).join("")+'</div>'):"—";
+    return '<tr>'+
+      '<td class="num">'+esc(o.tru||"—")+'</td><td>'+esc(o.truocSo||"—")+'</td>'+
+      '<td>'+esc(r.duong||"—")+'</td><td class="num">'+esc(o.tu||"—")+'</td>'+
+      '<td>'+esc(r.phuong||"—")+'</td>'+
+      '<td class="num">'+esc(o.can||"—")+'</td><td class="num">'+esc(o.pha||"—")+'</td>'+
+      '<td>'+esc(o.loai||"—").split(String.fromCharCode(10)).join("<br>")+'</td>'+
+      '<td class="num">'+esc(o.ngay||"—")+'</td>'+
+      '<td>'+esc(r.sonha||"—")+'</td><td>'+esc(o.ghichu||"")+'</td>'+
+      '<td class="num">'+esc(r.stt)+'</td><td>'+anh+'</td></tr>';
+  }).join("");
+  if(!dsLD.length) ldRows='<tr><td colspan="13" class="num">Chưa có vị trí nào được cập nhật thông tin lắp đặt.</td></tr>';
+
   const PEND_MAX=500;
   let pendRows="";
   pending.slice(0,PEND_MAX).forEach((r,i)=>{ pendRows+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.diaban)+'</td><td>'+
@@ -429,7 +462,7 @@ function render(){
     <p><i>Vị trí có khoảng cách ngoài khoảng 5 – 20 m không nằm trong bảng tra, báo cáo
     ghi rõ là “ngoài bảng” để đơn vị xem xét riêng chứ không tự nội suy công suất.</i></p>
 
-    <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
+    <h2 data-kho="ngang">IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
       <tr>
         <th>TT</th><th>STT danh mục</th><th>Mã điểm dừng</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
@@ -441,20 +474,35 @@ function render(){
       ${detail}
     </table>
 
-    <h2>V. Phụ lục: Vị trí chưa khảo sát</h2>
+    <h2>V. Bảng lắp đặt</h2>
+    <p class="cancu" style="text-align:left;margin:2px 0 6px">Theo mẫu của Trung tâm quản lý
+    giao thông công cộng. Cột <i>Đường</i>, <i>Phường</i> và <i>Vị trí theo văn bản</i> lấy từ
+    danh mục trạm dừng; <i>Trước số nhà</i> là địa chỉ của trụ đèn nên có thể khác.</p>
+    <p><b>Đã lắp đặt ${soXongLD}/${done.length}</b> vị trí đã khảo sát${soDangLD?(', '+soDangLD+' vị trí đang cập nhật dở'):''}.</p>
+    <table class="detail">
+      <tr>
+        <th>Trụ chiếu sáng số……</th><th>Trước số nhà…</th><th>Đường</th><th>Tủ điều khiển</th><th>Phường</th>
+        <th>Số lượng cần đèn</th><th>Số lượng đèn pha</th><th>Loại đèn</th><th>Ngày lắp đặt</th>
+        <th>Vị trí theo văn bản của Trung tâm quản lý giao thông công cộng</th><th>Ghi chú</th>
+        <th>STT</th><th>Ảnh lắp đặt</th>
+      </tr>
+      ${ldRows}
+    </table>
+
+    <h2 data-kho="doc">VI. Phụ lục: Vị trí chưa khảo sát</h2>
     <table>
       <tr><th>TT</th><th>Khu vực</th><th>Phường/Xã</th><th>Tuyến đường</th><th>Số nhà/Vị trí</th></tr>
       ${pendRows}
     </table>
 
     <div id="anh">
-      <h2>VI. Phụ lục ảnh hiện trường</h2>
+      <h2>VII. Phụ lục ảnh hiện trường</h2>
       <p><i>${nAnh} ảnh tại ${nViTri} vị trí. Mỗi ảnh đã được đóng dấu địa chỉ, tọa độ GPS
       và thời gian chụp ngay tại thời điểm khảo sát.</i></p>
       ${anh}
     </div>
 
-    <h2>VII. Kết luận & kiến nghị</h2>
+    <h2>VIII. Kết luận &amp; kiến nghị</h2>
     <textarea id="ketluan">Qua khảo sát ${done.length}/${total} vị trí, đơn vị kiến nghị bổ sung bộ đèn LED chiếu sáng tại các trụ dừng / nhà chờ xe buýt còn thiếu chiếu sáng, thực hiện trước các vị trí thuộc Ưu tiên 1. Kính trình cấp có thẩm quyền xem xét, chấp thuận chủ trương và bố trí kinh phí thực hiện.</textarea>
 
     <div class="sign">
@@ -669,11 +717,13 @@ function catSection(page){
   const s=[document.createElement("div"),document.createElement("div"),document.createElement("div")];
   s[0].className="WordSection1"; s[1].className="WordSection2"; s[2].className="WordSection3";
   let cur=0;
+  /* Cắt theo thuộc tính data-kho trên thẻ h2, KHÔNG dò số La Mã. Cách cũ bám vào
+     "IV." / "V." nên thêm một mục là gãy hết bố cục khổ giấy mà không ai thấy. */
   Array.prototype.slice.call(page.childNodes).forEach(n=>{
     if(n.nodeType===1 && n.tagName==="H2"){
-      const t=n.textContent.trim();
-      if(t.indexOf("IV.")===0) cur=1;
-      else if(t.indexOf("V.")===0) cur=2;
+      const k=n.getAttribute("data-kho");
+      if(k==="ngang") cur=1;
+      else if(k==="doc") cur=2;
     }
     s[cur].appendChild(n);
   });

@@ -125,12 +125,26 @@
   </div>
 
   <div class="sec">
-    <h3><span class="num">4</span> Xuất dữ liệu &amp; báo cáo</h3>
+    <h3><span class="num">4</span> Cập nhật khi đi lắp đặt</h3>
+    <p>Sau khi lắp xong, bấm nút <b>“Cập nhật thông tin lắp đặt”</b> ngay trên thẻ vị trí trong danh sách — không cần mở phiếu khảo sát.</p>
+    <ul>
+      <li><b>Trụ chiếu sáng số</b> (VD: CS15) và <b>Tủ điều khiển</b> (VD: TĐ-13).</li>
+      <li><b>Trước số nhà</b> — địa chỉ của <b>trụ đèn</b>, có thể khác địa chỉ trạm dừng.</li>
+      <li><b>Số lượng cần đèn</b>, <b>số lượng đèn pha</b>, <b>loại đèn</b> (mỗi loại một dòng), <b>ngày lắp đặt</b>.</li>
+      <li><b>Ảnh sau khi lắp đặt</b> — tối đa 3 tấm, cũng được đóng dấu địa chỉ, tọa độ và giờ chụp.</li>
+    </ul>
+    <div class="tip">Cuối bảng luôn có dòng <b>“Còn thiếu: …”</b> liệt kê đúng thứ chưa điền. Điền đủ các trường <b>và có ít nhất 1 ảnh</b> thì thẻ chuyển sang nhãn xanh <b>Đã lắp đặt</b>. Ô nào không áp dụng thì gõ dấu <b>—</b> cho đủ.</div>
+    <div class="note">Đường, Phường và Vị trí theo văn bản trong bảng nghiệm thu <b>lấy sẵn từ danh mục</b>, không phải nhập lại.</div>
+  </div>
+
+  <div class="sec">
+    <h3><span class="num">5</span> Xuất dữ liệu &amp; báo cáo</h3>
     <p>Bấm nút <b>“Xuất dữ liệu”</b> (góc phải dưới). Dòng đầu cho biết đã khảo sát bao nhiêu vị trí, còn bao nhiêu điểm chưa lên Sheets và bao nhiêu ảnh chưa lên Drive. Mở bảng này cũng khiến app <b>gửi nốt phần còn tồn và đọc về trạng thái mới nhất</b> từ Google Sheets.</p>
     <ul>
       <li><b>Xuất báo cáo khảo sát:</b> mở trang báo cáo hoàn chỉnh (tổng quan, thống kê, bảng chi tiết, <b>phụ lục ảnh hiện trường</b>, kết luận) — bấm <b>In / Lưu PDF</b> để nộp, hoặc <b>📄 Xuất Word</b> để tải về file mở bằng Microsoft Word, sửa chữ được. Bỏ tick <b>“In kèm phụ lục ảnh”</b> nếu chỉ cần bản gọn; in hay xuất kèm ảnh thì <b>cần có mạng</b> vì ảnh nạp từ Google Drive.</li>
       <li><b>Tải dữ liệu Excel (.xlsx):</b> xuất toàn bộ 661 vị trí ra file Excel thật — mở lên là dùng được ngay: cố định hàng tiêu đề, có nút lọc trên từng cột, tọa độ và khoảng cách đã là số nên cộng/trung bình được.</li>
       <li><b>Tải file CSV:</b> bản dự phòng, dùng khi máy không mở được file Excel.</li>
+      <li>File Excel có <b>2 sheet</b>: sheet <i>Khảo sát</i> và sheet <i>Bảng lắp đặt</i> theo đúng mẫu của Trung tâm quản lý giao thông công cộng.</li>
     </ul>
     <div class="tip"><b>Chọn phạm vi trước khi xuất:</b> ngay trong bảng Xuất dữ liệu có khối lọc theo
     <b>địa bàn, phường/xã, đã/chưa khảo sát, trụ dừng hay nhà chờ, mức ưu tiên</b> và <b>khoảng ngày khảo sát</b>.
@@ -143,7 +157,7 @@
   </div>
 
   <div class="sec">
-    <h3><span class="num">5</span> Mẹo dùng hiệu quả</h3>
+    <h3><span class="num">6</span> Mẹo dùng hiệu quả</h3>
     <ul>
       <li>Lấy GPS <b>ngay tại hiện trường</b> để tọa độ chính xác.</li>
       <li>Chụp ảnh rõ kết cấu trụ/nhà chờ và khu vực xung quanh.</li>

@@ -28,7 +28,7 @@ var SHEET_NAME = 'KhaoSat';
 // Thư mục Google Drive chứa ảnh hiện trường (tự tạo trong Drive của tài khoản chạy script).
 var PHOTO_FOLDER = 'Anh khao sat chieu sang - Tram dung xe buyt';
 
-// 23 cột app gửi lên + 1 cột thời gian server nhận = 24 cột.
+// 34 cột app gửi lên + 1 cột thời gian server nhận = 35 cột.
 var HEADERS = [
   'STT', 'Mã điểm dừng', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
@@ -36,14 +36,20 @@ var HEADERS = [
   'Loại trụ dừng, nhà chờ', 'Vị trí trụ so với nhà chờ', 'Loại trụ đèn',
   'Ưu tiên đề xuất', 'Bộ đèn pha đề xuất', 'Ghi chú thêm',
   'Ảnh 1', 'Ảnh 2', 'Ảnh 3',
-  'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
+  'Người khảo sát', 'Thời gian lưu (máy)',
+  'Trụ chiếu sáng số', 'Trước số nhà', 'Tủ điều khiển', 'Số lượng cần đèn',
+  'Số lượng đèn pha', 'Loại đèn', 'Ngày lắp đặt',
+  'Ảnh lắp đặt 1', 'Ảnh lắp đặt 2', 'Ảnh lắp đặt 3', 'Ghi chú lắp đặt',
+  'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 24
-var APP_COLS = 23;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 35
+var APP_COLS = 34;                 // số cột app gửi
 
 // Độ rộng cột (pixel), khớp 1-1 với HEADERS. Thêm/bớt cột thì sửa cả hai.
 var COL_WIDTHS = [45, 90, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 130, 200,
-                  190, 190, 190, 120, 130, 130];
+                  190, 190, 190, 120, 130,
+                  110, 170, 100, 95, 95, 190, 100, 190, 190, 190, 170,
+                  130];
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -315,7 +321,11 @@ function savePhoto_(p) {
     if (!stt) return jsonOut_({ ok: false, error: 'Thiếu STT của điểm khảo sát.' });
     if (!p.data) return jsonOut_({ ok: false, error: 'Thiếu dữ liệu ảnh.' });
 
-    var name = 'KS_' + ('0000' + stt).slice(-4) + '_' + idx + '.jpg';
+    /* Tiền tố phân biệt hai giai đoạn. Thiếu nó là ảnh lắp đặt ghi đè ảnh khảo sát
+       cùng STT cùng ô ảnh, vì tên file đặt theo STT + ô. Bản app cũ không gửi `pre`
+       nên mặc định 'KS' để không phá dữ liệu đang có. */
+    var pre = String(p.pre || 'KS').replace(/[^A-Z]/g, '') || 'KS';
+    var name = pre + '_' + ('0000' + stt).slice(-4) + '_' + idx + '.jpg';
     var folder = getPhotoFolder_();
 
     // Xóa bản cũ cùng tên (nếu chụp lại ô ảnh này)

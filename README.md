@@ -62,7 +62,7 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 4. Trên thanh chọn hàm, chọn **`setupSheet`** → bấm **Run**.
    - Lần đầu sẽ hỏi cấp quyền: chọn tài khoản → **Advanced** → **Go to … (unsafe)** → **Allow**.
    - Lần đầu chạy sẽ xin cả quyền **Google Drive** (để lưu ảnh hiện trường) — cứ Allow.
-   - Chạy xong, sheet "KhaoSat" sẽ có sẵn 24 cột tiêu đề định dạng đẹp.
+   - Chạy xong, sheet "KhaoSat" sẽ có sẵn 35 cột tiêu đề định dạng đẹp.
 5. Bấm **Deploy → New deployment** → biểu tượng bánh răng chọn **Web app**:
    - **Execute as**: `Me`
    - **Who has access**: `Anyone`
@@ -159,6 +159,8 @@ Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngượ
 Bấm **📊 Tải dữ liệu Excel (.xlsx)** trong bảng *Xuất dữ liệu*. Đây là file Excel thật, không phải CSV đổi đuôi: font Times New Roman, cố định hàng tiêu đề, có nút lọc trên từng cột, độ rộng cột đặt sẵn, và **tọa độ / khoảng cách lưu dạng số** nên tính trung bình, sắp xếp, vẽ biểu đồ được ngay.
 
 Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. Mặc định xuất đủ **661 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
+
+**Giai đoạn lắp đặt:** mỗi vị trí có thêm nút **“Cập nhật thông tin lắp đặt”** ngay trên thẻ danh sách, mở ra bảng nhập theo mẫu nghiệm thu của Trung tâm quản lý giao thông công cộng (trụ chiếu sáng số, trước số nhà, tủ điều khiển, số lượng cần đèn / đèn pha, loại đèn, ngày lắp đặt, ghi chú) kèm **tối đa 3 ảnh sau khi lắp**. Điền đủ các trường **và có ít nhất 1 ảnh** thì thẻ chuyển sang nhãn **Đã lắp đặt**; bảng luôn hiện dòng *“Còn thiếu: …”* nên không phải đoán. File Excel có thêm sheet **Bảng lắp đặt** đúng 11 cột của mẫu, báo cáo có thêm **mục V. Bảng lắp đặt**.
 
 **Chọn phạm vi xuất:** ngay trong bảng *Xuất dữ liệu* có khối lọc theo **địa bàn, phường/xã, đã/chưa khảo sát, trụ dừng hay nhà chờ, mức ưu tiên** và **khoảng ngày khảo sát**, kèm dòng *“Sẽ xuất N/661 vị trí”*. Excel, CSV và báo cáo đều theo phạm vi đó; báo cáo trích lọc in rõ dòng **Phạm vi báo cáo** dưới tiêu đề. Bộ lọc dùng chung với màn danh sách nên chỉnh ở đâu cũng được.
 

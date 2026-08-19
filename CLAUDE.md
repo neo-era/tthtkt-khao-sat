@@ -35,7 +35,7 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **23 cột** theo `rowArray()`; backend thêm cột 24 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **Số cột phải khớp**: app gửi đúng **34 cột** theo `rowArray()`; backend thêm cột 35 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
 - **Chiều ĐỌC VỀ dò cột theo TÊN tiêu đề, tuyệt đối không theo vị trí** (`doViTriCot` + `oCot` trong `pullFromSheets`). Đọc theo vị trí đã gây sự cố thật ngày 19/8/2026: Sheet còn bố cục cũ trong khi app đã lên bố cục mới, mọi trường lệch một nấc — vĩ độ nhận kinh độ, người khảo sát nhận mốc thời gian server — và **không có lỗi nào báo**, dữ liệu hiện trường cứ thế bị ghi đè sai. Thiếu cột trong `COT_BAT_BUOC` thì **không trộn gì cả**, báo lỗi kèm tên cột thiếu (báo cả khi chạy ngầm, vì im lặng là cán bộ tưởng dữ liệu đã khớp).
 - Đánh đổi đã chọn: đổi *chữ* tiêu đề trên Sheet giờ làm app báo lỗi thay vì chạy sai. Báo lỗi thì sửa được, ghi nhầm trường thì không ai biết mà sửa.
 - `COL` chỉ còn mô tả bố cục **chiều ghi lên** (`rowArray`), giữ cạnh `HEADERS` cho hai thứ không lệch nhau.
@@ -65,6 +65,21 @@ Key = STT (số). Value:
 - `sync` = thời điểm Apps Script **xác nhận đã ghi** dòng này vào Sheet. Rỗng = chưa lên Sheets → thẻ hiện nhãn vàng "Chưa đồng bộ", `unsynced()` gom lại để gửi tiếp. `saveDetail` xóa `sync` mỗi lần lưu vì nội dung đã đổi.
 - Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: lat, d1, d2, nhacho, vitri, loaitru, prio, note, photos.
 
+### Giai đoạn 2 — lắp đặt (nhánh `ld`)
+Sau khảo sát là thi công. Bản ghi có thêm nhánh riêng, tách hẳn phần khảo sát:
+```js
+c.ld = { tru, truocSo, tu, can, pha, loai, ngay, ghichu, photos:[{d,id,url}] }
+```
+- Bộ trường bám theo **bảng nghiệm thu của Trung tâm quản lý giao thông công cộng** (11 cột). `Đường`, `Phường`, `Vị trí theo văn bản` **không lưu lại** — lấy thẳng từ `RAW` khi xuất. Riêng `truocSo` là địa chỉ của **trụ đèn**, khác địa chỉ trạm dừng nên phải nhập.
+- `ngay` lưu dạng **dd/mm/yyyy** cho khớp bảng nghiệm thu; ô `<input type="date">` chỉ nhận `yyyy-mm-dd` nên `moLapDat`/`gomLD` đổi qua lại bằng `ngayISO()` / `ngayVN()`.
+- **`daLapDat(stt)`** = đủ **7 trường** (`tru, truocSo, tu, can, pha, loai, ngay`) **và** có ≥1 ảnh. `thieuLapDat()` trả về đúng tên thứ còn thiếu, bảng nhập hiện dòng *"Còn thiếu: …"*. Ô không áp dụng thì gõ `—`; đừng nới lỏng điều kiện vì mẫu nghiệm thu cần đủ cột.
+- `coLapDat(stt)` = có bất kỳ trường hoặc ảnh nào — dùng để lọc dòng đưa vào bảng nghiệm thu (kể cả đang cập nhật dở).
+
+**Hai kho ảnh trên cùng một điểm** (`KHO` trong `index.html`): `'ks'` = ảnh khảo sát (`c.photos`), `'ld'` = ảnh lắp đặt (`c.ld.photos`). Dùng chung một đường ống (`onPhoto`, `renderPhotos`, `uploadPhotosFor`, `stampLines`) qua tham số `kho`, đừng viết bộ thứ hai.
+- **Tiền tố tên file trên Drive bắt buộc khác nhau** (`KS_` / `LD_`, gửi qua `pre` trong payload): `savePhoto_` đặt tên theo STT + ô ảnh, thiếu tiền tố là ảnh lắp đặt **ghi đè ảnh khảo sát**. Bản app cũ không gửi `pre` nên backend mặc định `'KS'`.
+- `stampLines(stt, kho)`: ảnh khảo sát lấy toạ độ từ ô nhập (đang gõ dở), ảnh lắp đặt lấy từ **bản ghi** — ô nhập lúc đó còn giữ giá trị của điểm mở trước đó, đóng dấu nhầm là hỏng bằng chứng.
+- `pushPending` phải tải ảnh của **cả hai kho**, không thì ảnh lắp đặt kẹt trên máy mãi.
+
 ### Đề xuất bộ đèn pha LED (`deXuatDen` trong index.html)
 Tra bảng theo **"Hướng dẫn thực hiện khảo sát đề xuất phương án bổ sung, tăng cường chiếu sáng khu vực trụ dừng, nhà chờ xe buýt"** của Phòng Kỹ thuật — căn cứ VB 5104/TTGTHTKT-CXCS1 (31/7/2026) và 29093/SXD-HTKT (11/8/2026), thông số mô phỏng bằng DIALux.
 
@@ -91,10 +106,11 @@ Chỗ **cố tình không khẳng định**: trên 20 m chỉ ghi *"cân nhắc 
 
 Cột căn cứ **chỉ có trong báo cáo**, không có trong `rowArray`/Sheet — thêm vào đó là phải chạy `nangCapBang` + deploy lại. Bảng chi tiết mục IV vì vậy có **16 cột**; đổi số cột thì phải sửa kèm `colspan` (2 chỗ dùng số cột đầy đủ, 1 chỗ dùng số cột − 1 ở dòng ghi chú).
 
-### Thứ tự 23 cột gửi lên (hàm `rowArray` trong index.html)
+### Thứ tự 34 cột gửi lên (hàm `rowArray` trong index.html)
 `STT, Mã điểm dừng, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Bộ đèn pha đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
 
-Cột 24 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
+Cột 24–34 là **giai đoạn lắp đặt**: `Trụ chiếu sáng số, Trước số nhà, Tủ điều khiển, Số lượng cần đèn, Số lượng đèn pha, Loại đèn, Ngày lắp đặt, Ảnh lắp đặt 1–3, Ghi chú lắp đặt`.
+Cột 35 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
 Cột 17 (`Bộ đèn pha đề xuất`) là **số liệu suy ra từ cột khoảng cách**, không lưu trong bản ghi — `pullFromSheets` không đọc nó về.
 Cột 19–21 là **link Drive**, chỉ xuất ra — không dựng lại được file ảnh từ link.
 Cột 2 (`Mã điểm dừng`) **chỉ 51 nhà chờ mới có**, 610 trụ dừng để rỗng vì danh sách gốc không có cột này.
@@ -151,7 +167,7 @@ Nút **📄 Xuất Word** dựng file `.doc` từ chính DOM báo cáo đang hi�
 Mấy chỗ **không được đơn giản hóa**, đều là hạn chế thật của Word:
 - **Định dạng là MHTML (multipart/related) đặt đuôi `.doc`**, không phải HTML thường. Word bản desktop **không hiện ảnh `data:` URI** — nhúng base64 vào `<img src>` thì mở ra chỉ thấy ô trống. Phải tách mỗi ảnh thành một phần MIME riêng, nối bằng `Content-Location` (`src` trong HTML phải trùng tên file ở phần MIME). Không dùng `.docx` vì đóng gói ZIP cần thư viện ngoài — luật cấm dependency.
 - **Word không hiểu flex/grid** → `wordHoaBoCuc()` đổi `.kpi`/`.pgrid`/`.sign` sang `<table>`, `.space` (chừa chỗ ký) sang các dòng trống. `<div>` rỗng đặt chiều cao không giữ được khoảng trắng trong Word.
-- **Bảng chi tiết 13 cột phải nằm khổ ngang**: `catSection()` cắt báo cáo thành `div.WordSection1/2/3`, section 2 khai `mso-page-orientation:landscape`. Cắt theo tiền tố tiêu đề `IV.` / `V.` — đổi số La Mã của mục thì phải sửa hàm này.
+- **Bảng chi tiết phải nằm khổ ngang**: `catSection()` cắt báo cáo thành `div.WordSection1/2/3`, section 2 khai `mso-page-orientation:landscape`. Cắt theo **thuộc tính `data-kho` trên thẻ `h2`** (`"ngang"` mở section ngang, `"doc"` quay lại dọc) — **không** dò số La Mã nữa, cách cũ khiến thêm một mục là gãy hết bố cục khổ giấy mà không ai thấy.
 - **Không viết trần `<!--` / `-->` ở bất kỳ đâu trong khối `<script>`** (kể cả trong chú thích JS): phải nối chuỗi `"<!"+"--"` và `"--"+">"`. Đoạn conditional comment `[if gte mso 9]` (đặt chế độ xem Print/100% cho Word) từng viết trần và **làm gãy cả trang báo cáo** — bộ phân tích HTML cắt khối script tại đó, phần code còn lại đổ ra màn hình thành một mảng chữ. Thẻ đóng trong chuỗi cũng nên viết `<\/div>`. (Chrome/Edge tự xử lý được, nhưng đã gãy thật trên máy người dùng nên đừng khôi phục cách viết cũ.)
 - Dòng base64 cắt **≤76 ký tự** theo chuẩn MIME, cắt bằng vòng lặp chứ không regex toàn cục (file có ảnh lên tới hàng chục MB).
 - Bỏ tick *In kèm phụ lục ảnh* thì **bỏ luôn ảnh nhỏ trong bảng chi tiết** — không in phụ lục nghĩa là muốn file nhẹ, giữ lại ảnh nhỏ vẫn phải tải đủ từng tấm.
