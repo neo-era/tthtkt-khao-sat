@@ -62,12 +62,14 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 4. Trên thanh chọn hàm, chọn **`setupSheet`** → bấm **Run**.
    - Lần đầu sẽ hỏi cấp quyền: chọn tài khoản → **Advanced** → **Go to … (unsafe)** → **Allow**.
    - Lần đầu chạy sẽ xin cả quyền **Google Drive** (để lưu ảnh hiện trường) — cứ Allow.
-   - Chạy xong, sheet "KhaoSat" sẽ có sẵn 22 cột tiêu đề định dạng đẹp.
+   - Chạy xong, sheet "KhaoSat" sẽ có sẵn 24 cột tiêu đề định dạng đẹp.
 5. Bấm **Deploy → New deployment** → biểu tượng bánh răng chọn **Web app**:
    - **Execute as**: `Me`
    - **Who has access**: `Anyone`
    - → **Deploy** → **copy đường link kết thúc bằng `/exec`**.
 6. Dán link `/exec` vào hằng số **`DEFAULT_URL`** trong `index.html` (app không còn ô nhập URL), rồi commit lại.
+
+> Bản `Code.gs` mới có thêm cột thì chạy **`nangCapBang`** một lần (KHÔNG chạy lại `setupSheet` — hàm đó xóa sạch dữ liệu). Hàm này tự chèn cột còn thiếu vào đúng vị trí, giữ nguyên dữ liệu cũ.
 
 > Mỗi khi sửa `Code.gs`, phải **Deploy lại**: *Manage deployments → Edit (bút chì) → Version: New version → Deploy*. URL giữ nguyên.
 

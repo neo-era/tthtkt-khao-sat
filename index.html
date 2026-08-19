@@ -73,6 +73,15 @@
   .b.wait{background:var(--amber-bg);color:var(--amber)}
   .b.done{background:var(--green-bg);color:var(--green)}
   .b.nhacho{background:#E7E9FB;color:#3F4BB8}
+  /* Gợi ý bộ đèn pha, tính từ ô khoảng cách theo Hướng dẫn của Phòng Kỹ thuật */
+  .dexuat{margin:-2px 0 14px;padding:11px 13px;border-radius:11px;background:#E8F1FB;
+    border:1px solid #C5DBF2;font-size:13.5px;color:#12406E}
+  .dexuat b{display:block;font-size:15px;font-weight:800;margin-bottom:2px}
+  .dexuat span{display:block;font-size:12.5px;color:#3B6690;line-height:1.5}
+  .dexuat.warn{background:var(--amber-bg);border-color:#F2D9B0;color:#7A4A0A}
+  .dexuat.warn span{color:#8A5A1A}
+  .dexuat.off{background:#F1F5F9;border-color:var(--line);color:var(--muted)}
+  .dexuat.off span{color:var(--muted)}
   .cardmap{flex:none;align-self:center;width:36px;height:36px;border-radius:9px;border:1px solid var(--line);
     background:var(--green-bg);display:flex;align-items:center;justify-content:center;cursor:pointer}
   .cardmap:active{transform:scale(.94)}
@@ -248,6 +257,8 @@
       <input class="ctl" id="fD2" inputmode="decimal" placeholder="VD: 28">
     </div>
 
+    <div class="dexuat" id="boxDen"><b id="denW">—</b><span id="denMo"></span></div>
+
     <div class="field">
       <label>Loại trụ dừng, nhà chờ</label>
       <div class="seg" id="segNhacho"></div>
@@ -322,6 +333,43 @@ const NHACHO = ["Nhà chờ chưa cải tạo","Đã lắp mới"];
 const VITRI  = ["Cùng phía","Đối diện"];
 const LOAITRU= ["BTLT","STK côn tròn","STK bát giác"];
 const PRIO   = ["Ưu tiên 1","Ưu tiên 2"];
+
+/* ---------- ĐỀ XUẤT BỘ ĐÈN PHA LED ----------
+   Theo "Hướng dẫn thực hiện khảo sát đề xuất phương án bổ sung, tăng cường chiếu
+   sáng khu vực trụ dừng, nhà chờ xe buýt" của Phòng Kỹ thuật — căn cứ VB
+   5104/TTGTHTKT-CXCS1 (31/7/2026) và 29093/SXD-HTKT (11/8/2026), thông số mô phỏng
+   bằng DIALux.
+
+   X = khoảng cách từ trụ chiếu sáng hiện hữu đến trụ dừng / nhà chờ, đo THEO HƯỚNG
+   XE BUÝT LƯU THÔNG — đúng bằng ô `d1` app đang thu thập, nên suy ra được công suất.
+
+   Đây là số liệu suy ra, KHÔNG lưu vào bản ghi: lưu thì sửa lại khoảng cách mà con
+   số cũ vẫn nằm đó, thành ra sai mà không ai biết. Mọi chỗ cần thì tính lại.
+   `baocao.html` có một bản sao của bảng này — sửa thì sửa cả hai. */
+const BANG_DEN = [
+  { toi:10, w:50, cao:"6 – 10 m" },     // 5 ≤ X ≤ 10
+  { toi:15, w:80, cao:"6 – 10 m" },     // 10 < X ≤ 15
+  { toi:20, w:80, cao:"7 – 10 m" },     // 15 < X ≤ 20
+];
+const GOC_DEN = "5 – 15°";
+function soMet(v){
+  const s=String(v==null?"":v).trim().replace(",",".");
+  return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null;   // "khoảng 6" thì chịu, để người đọc tự xử
+}
+/* Trả {w, cao, canhbao} — w=0 nghĩa là ngoài bảng, phải xem xét riêng. */
+function deXuatDen(d1){
+  const x = soMet(d1);
+  if(x===null) return null;
+  if(x < 5) return { w:0, cao:"", canhbao:"X < 5 m — ngoài bảng hướng dẫn, cần xem xét riêng" };
+  for(const r of BANG_DEN) if(x <= r.toi) return { w:r.w, cao:r.cao, canhbao:"" };
+  return { w:0, cao:"", canhbao:"X > 20 m — ngoài bảng; cân nhắc trồng trụ STK cao 6 m (mục 3)" };
+}
+/* Chuỗi ngắn để ghi vào bảng dữ liệu và báo cáo. */
+function denText(d1){
+  const d = deXuatDen(d1);
+  if(!d) return "";
+  return d.w ? ("Đèn pha LED " + d.w + "W") : "Ngoài bảng";
+}
 
 let store = loadStore();
 let filterDistrict = "Tất cả";
@@ -468,6 +516,35 @@ function setSeg(id,val){
 }
 function getSeg(id){ const on=document.getElementById(id).querySelector(".on"); return on?on.dataset.v:""; }
 
+/* Hiện gợi ý bộ đèn ngay dưới hai ô khoảng cách, cập nhật theo từng ký tự gõ vào.
+   Cán bộ đứng ngoài đường đọc được đề xuất luôn, khỏi phải tra bảng giấy. */
+function veDeXuatDen(){
+  const d1=document.getElementById("fD1").value, d2=document.getElementById("fD2").value;
+  const box=document.getElementById("boxDen");
+  const w=document.getElementById("denW"), mo=document.getElementById("denMo");
+  const d=deXuatDen(d1);
+  box.className="dexuat";
+  if(!d){
+    box.classList.add("off");
+    w.textContent="Chưa đề xuất được bộ đèn";
+    mo.textContent="Nhập khoảng cách từ trụ đèn đến trụ dừng / nhà chờ (ô đầu tiên) để app tra bảng Hướng dẫn.";
+    return;
+  }
+  if(!d.w){
+    box.classList.add("warn");
+    w.textContent="Ngoài bảng hướng dẫn";
+    mo.textContent=d.canhbao;
+    return;
+  }
+  w.textContent="Đèn pha LED "+d.w+"W";
+  // Nằm giữa 2 trụ đèn (có cả khoảng cách tới trụ kế) thì mục 2 chỉ cho lắp 1 bên.
+  const giua = soMet(d2)!==null;
+  mo.textContent="Độ cao lắp đèn "+d.cao+" · góc chiếu "+GOC_DEN+
+    " · đối xứng, hướng chiếu cùng chiều xe buýt lưu thông."+
+    (giua?" Nằm giữa 2 trụ đèn — chỉ lắp 1 bên (mục 2).":"")+
+    " Độ cao lắp phải nhỏ hơn chiều cao trụ hiện hữu.";
+}
+
 function openDetail(stt){
   current=stt;
   const r=RAW.find(x=>x.stt===stt); const rc=rec(stt);
@@ -487,6 +564,7 @@ function openDetail(stt){
   document.getElementById("fGpsMeta").textContent=rc.acc?("Độ chính xác ±"+rc.acc+" m · "+(rc.gpsAt||"")):"";
   document.getElementById("fD1").value=rc.d1||"";
   document.getElementById("fD2").value=rc.d2||"";
+  veDeXuatDen();
   setSeg("segNhacho",rc.nhacho||""); setSeg("segViTri",rc.vitri||"");
   setSeg("segTru",rc.loaitru||"");   setSeg("segPrio",rc.prio||"");
   document.getElementById("fNote").value=rc.note||"";
@@ -705,7 +783,9 @@ function rowArray(r){
   const ph=Array.isArray(c.photos)?c.photos:[];
   return [r.stt,r.ma||"",r.diaban,r.ten,r.duong,r.sonha,r.phuong,r.loai,
     c.lat||"",c.lng||"",c.d1||"",c.d2||"",
-    c.nhacho||"",c.vitri||"",c.loaitru||"",c.prio||"",c.note||"",
+    c.nhacho||"",c.vitri||"",c.loaitru||"",c.prio||"",
+    denText(c.d1),                                  // suy từ khoảng cách, không lưu
+    c.note||"",
     photoLink(ph[0]),photoLink(ph[1]),photoLink(ph[2]),
     c.by||"",c.at||""];
 }
@@ -713,7 +793,7 @@ const HEADERS=["STT","Mã điểm dừng","Địa bàn","Tên vị trí","Tuyế
   "Vĩ độ","Kinh độ",
   "KC trụ đèn → trụ dừng (m)","KC trụ dừng → trụ đèn kế (m)",
   "Loại trụ dừng, nhà chờ","Vị trí trụ so với nhà chờ","Loại trụ đèn",
-  "Ưu tiên đề xuất","Ghi chú thêm",
+  "Ưu tiên đề xuất","Bộ đèn pha đề xuất","Ghi chú thêm",
   "Ảnh 1","Ảnh 2","Ảnh 3","Người khảo sát","Thời gian lưu"];
 /* Chỉ số cột, để ĐÚNG cạnh HEADERS và rowArray cho ba thứ không bao giờ lệch nhau.
    pullFromSheets đọc Sheet theo vị trí cột; trước đây rải chỉ số cứng (v[7], v[15]…)
@@ -721,8 +801,8 @@ const HEADERS=["STT","Mã điểm dừng","Địa bàn","Tên vị trí","Tuyế
    nhầm trường mà không có lỗi nào báo. Đổi bố cục cột thì sửa đúng bảng này.
    Cột SERVER do Code.gs thêm, app không gửi lên. */
 const COL={STT:0,MA:1,DIABAN:2,TEN:3,DUONG:4,SONHA:5,PHUONG:6,HATANG:7,
-  LAT:8,LNG:9,D1:10,D2:11,NHACHO:12,VITRI:13,LOAITRU:14,PRIO:15,NOTE:16,
-  ANH1:17,ANH2:18,ANH3:19,BY:20,AT:21,SERVER:22};
+  LAT:8,LNG:9,D1:10,D2:11,NHACHO:12,VITRI:13,LOAITRU:14,PRIO:15,DEN:16,NOTE:17,
+  ANH1:18,ANH2:19,ANH3:20,BY:21,AT:22,SERVER:23};
 function exportCsv(){
   // Tiêu đề cũng phải qua csvCell: "Loại trụ dừng, nhà chờ" có dấu phẩy, không bọc thì lệch cột.
   const lines=[HEADERS.map(csvCell).join(",")];
@@ -811,7 +891,7 @@ function soThuan(v){
 /* Số thứ tự cột (đếm từ 1) lưu dạng số: STT, vĩ độ, kinh độ, 2 cột khoảng cách.
    Mã điểm dừng ("Q3 101") phải để dạng CHỮ, đừng thêm vào đây. */
 const COT_SO={1:1,9:1,10:1,11:1,12:1};
-const RONG_COT=[6,13,13,26,20,18,15,17,12,12,15,15,21,19,16,13,28,26,26,26,17,18];
+const RONG_COT=[6,13,13,26,20,18,15,17,12,12,15,15,21,19,16,13,20,28,26,26,26,17,18];
 
 function exportXlsx(){
   try{
@@ -1049,6 +1129,7 @@ document.getElementById("fabExport").onclick=openSheet;
 document.getElementById("scrim").onclick=closeSheet;
 document.getElementById("btnCsv").onclick=exportCsv;
 document.getElementById("btnXlsx").onclick=exportXlsx;
+["fD1","fD2"].forEach(id=>document.getElementById(id).addEventListener("input", veDeXuatDen));
 
 try{ localStorage.setItem("lavipco_ks_raw_v1", JSON.stringify(RAW)); }catch(e){}
 /* baocao.html cần URL backend để tải ảnh Drive về nhúng vào file Word (Drive không

@@ -106,6 +106,33 @@ const VITRIS  = ["Cùng phía","Đối diện"];
 const LOAITRUS= ["BTLT","STK côn tròn","STK bát giác"];
 const PRIOS   = ["Ưu tiên 1","Ưu tiên 2"];
 
+/* Bảng công suất đèn pha theo "Hướng dẫn thực hiện khảo sát đề xuất phương án bổ
+   sung, tăng cường chiếu sáng khu vực trụ dừng, nhà chờ xe buýt" của Phòng Kỹ thuật
+   — căn cứ VB 5104/TTGTHTKT-CXCS1 (31/7/2026) và 29093/SXD-HTKT (11/8/2026).
+   X = khoảng cách trụ đèn → trụ dừng/nhà chờ, chính là ô d1.
+   BẢN SAO của bảng trong index.html — sửa thì phải sửa cả hai. */
+const BANG_DEN = [
+  { toi:10, w:50, cao:"6 – 10 m" },
+  { toi:15, w:80, cao:"6 – 10 m" },
+  { toi:20, w:80, cao:"7 – 10 m" },
+];
+function soMet(v){
+  const s=String(v==null?"":v).trim().replace(",",".");
+  return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : null;
+}
+function deXuatDen(d1){
+  const x=soMet(d1);
+  if(x===null) return null;
+  if(x<5) return { w:0, canhbao:"X < 5 m — ngoài bảng" };
+  for(const r of BANG_DEN) if(x<=r.toi) return { w:r.w, cao:r.cao, canhbao:"" };
+  return { w:0, canhbao:"X > 20 m — cân nhắc trồng trụ mới" };
+}
+function denText(d1){
+  const d=deXuatDen(d1);
+  if(!d) return "";
+  return d.w ? ("LED "+d.w+"W") : "Ngoài bảng";
+}
+
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
 function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v3"))||{}; }catch(e){ return {}; } }
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
@@ -170,6 +197,33 @@ function render(){
     return opts.map(o=>'<tr><td>'+o+'</td><td class="num">'+c[o]+'</td><td class="num">'+
       (done.length?Math.round(c[o]/done.length*100):0)+'%</td></tr>').join("");
   }
+  /* Đề xuất bộ đèn pha: tra bảng Hướng dẫn bằng chính ô khoảng cách d1.
+     Không lưu sẵn trong bản ghi nên báo cáo luôn khớp với số liệu mới nhất. */
+  const denDem=[0,0,0], denNgoai=[], denChua=[];
+  done.forEach(r=>{
+    const x=soMet(rec(STORE,r.stt).d1);
+    if(x===null){ denChua.push(r); return; }
+    let i=-1;
+    if(x>=5) for(let k=0;k<BANG_DEN.length;k++) if(x<=BANG_DEN[k].toi){ i=k; break; }
+    if(i<0) denNgoai.push(r); else denDem[i]++;
+  });
+  const denRows = BANG_DEN.map((b,i)=>
+      '<tr><td class="num">'+(i===0?"5 ≤ X ≤ "+b.toi:BANG_DEN[i-1].toi+" &lt; X ≤ "+b.toi)+' m</td>'+
+      '<td class="num">'+b.w+' W</td><td class="num">'+b.cao+'</td><td class="num">5 – 15°</td>'+
+      '<td class="num">'+denDem[i]+'</td></tr>').join("")+
+    '<tr><td>Ngoài bảng (X &lt; 5 m hoặc X &gt; 20 m)</td><td class="num">—</td><td class="num">—</td>'+
+      '<td class="num">—</td><td class="num">'+denNgoai.length+'</td></tr>'+
+    '<tr><td>Chưa đo được khoảng cách</td><td class="num">—</td><td class="num">—</td>'+
+      '<td class="num">—</td><td class="num">'+denChua.length+'</td></tr>'+
+    '<tr class="grp"><td colspan="4"><b>Tổng số vị trí đã khảo sát</b></td>'+
+      '<td class="num"><b>'+done.length+'</b></td></tr>';
+  const denNgoaiTxt = denNgoai.length
+    ? '<p><i>Vị trí ngoài bảng, cần xem xét riêng: '+
+        denNgoai.slice(0,20).map(r=>"STT "+r.stt).join(", ")+
+        (denNgoai.length>20?(" và "+(denNgoai.length-20)+" vị trí khác"):"")+
+        '. Trường hợp X &gt; 20 m thì cân nhắc trồng trụ STK cao 6 m rồi lắp theo mục 1.</i></p>'
+    : "";
+
   const nhachoRows  = tally("nhacho",  NHACHOS);
   const vitriRows   = tally("vitri",   VITRIS);
   const loaitruRows = tally("loaitru", LOAITRUS);
@@ -187,7 +241,7 @@ function render(){
     const c=rec(STORE,r.stt);
     const g=r.phuong+" · "+r.diaban;
     if(g!==curG){ curG=g;
-      detail+='<tr class="grp"><td colspan="14">'+esc(curG)+'</td></tr>'; }
+      detail+='<tr class="grp"><td colspan="15">'+esc(curG)+'</td></tr>'; }
     const gps = c.lat? (c.lat+", "+c.lng) : "—";
     const prCls = c.prio==="Ưu tiên 1"?"pr-Cao":(c.prio==="Ưu tiên 2"?"pr-TB":"");
     detail+='<tr>'+
@@ -203,12 +257,13 @@ function render(){
       '<td>'+esc(c.vitri||"—")+'</td>'+
       '<td>'+esc(c.loaitru||"—")+'</td>'+
       '<td class="'+prCls+'">'+esc(c.prio||"—")+'</td>'+
+      '<td class="num">'+esc(denText(c.d1)||"—")+'</td>'+
       '<td>'+photoCell(c)+'</td>'+
       '<td>'+esc(c.by||"—")+'</td>'+
       '</tr>';
-    if(c.note){ detail+='<tr><td></td><td colspan="13"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
+    if(c.note){ detail+='<tr><td></td><td colspan="14"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
   });
-  if(!done.length) detail='<tr><td colspan="14" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
+  if(!done.length) detail='<tr><td colspan="15" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
 
   // phụ lục chưa khảo sát
   // phụ lục ảnh hiện trường
@@ -289,13 +344,27 @@ function render(){
       ${prioRows}
     </table>
 
+    <h3>Đề xuất bộ đèn pha LED</h3>
+    <p class="cancu" style="text-align:left;margin:2px 0 6px">Theo Hướng dẫn của Phòng Kỹ thuật
+    (căn cứ văn bản số 5104/TTGTHTKT-CXCS1 ngày 31/7/2026 và số 29093/SXD-HTKT ngày 11/8/2026),
+    thông số mô phỏng bằng phần mềm DIALux. Bộ đèn pha LED đối xứng, góc chiếu chùm tia 30°,
+    hướng chiếu cùng chiều phương tiện lưu thông; độ cao lắp phải nhỏ hơn chiều cao trụ hiện hữu.
+    X là khoảng cách từ trụ chiếu sáng hiện hữu đến trụ dừng / nhà chờ.</p>
+    <table>
+      <tr><th>Khoảng cách X</th><th>Công suất</th><th>Độ cao lắp (H)</th><th>Góc chiếu (α)</th><th>Số vị trí</th></tr>
+      ${denRows}
+    </table>
+    ${denNgoaiTxt}
+    <p><i>Vị trí nằm giữa 2 trụ chiếu sáng hiện hữu chỉ lắp 1 bên (mục 2 của Hướng dẫn);
+    vị trí không có trụ chiếu sáng thì trồng trụ STK cao 6 m rồi lắp theo mục 1.</i></p>
+
     <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
       <tr>
         <th>TT</th><th>STT danh mục</th><th>Mã điểm dừng</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
         <th>KC trụ đèn → trụ dừng (m)</th><th>KC trụ dừng → trụ đèn kế (m)</th>
         <th>Loại trụ dừng, nhà chờ</th><th>Vị trí trụ so với nhà chờ</th><th>Loại trụ đèn</th>
-        <th>Ưu tiên đề xuất</th><th>Ảnh hiện trường</th><th>Người KS</th>
+        <th>Ưu tiên đề xuất</th><th>Bộ đèn pha đề xuất</th><th>Ảnh hiện trường</th><th>Người KS</th>
       </tr>
       ${detail}
     </table>

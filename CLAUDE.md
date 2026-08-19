@@ -35,9 +35,9 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **22 cột** theo `rowArray()`; backend thêm cột 23 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **Số cột phải khớp**: app gửi đúng **23 cột** theo `rowArray()`; backend thêm cột 24 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
 - **`COL` là nguồn duy nhất cho chỉ số cột.** `pullFromSheets` đọc Sheet theo vị trí cột; trước đây rải chỉ số cứng (`v[7]`, `v[15]`…) nên chèn một cột là phải dịch 20 chỗ, sai một chỗ thì dữ liệu vào nhầm trường mà **không có lỗi nào báo**. Đừng viết lại chỉ số trần, và giữ `COL` ngay cạnh `HEADERS`.
-- **Đổi bố cục cột trên Sheet đang có dữ liệu thì dùng hàm nâng cấp, KHÔNG chạy `setupSheet`** — hàm đó `sheet.clear()`, mất sạch dữ liệu đã đồng bộ. Mẫu có sẵn: `themCotMaDiemDung()` trong `Code.gs` (dùng `insertColumnBefore`, giữ nguyên dữ liệu cũ).
+- **Đổi bố cục cột trên Sheet đang có dữ liệu thì dùng hàm nâng cấp, KHÔNG chạy `setupSheet`** — hàm đó `sheet.clear()`, mất sạch dữ liệu đã đồng bộ. Dùng `nangCapBang()` trong `Code.gs`: nó so tiêu đề hiện có với `HEADERS`, thiếu cột nào thì `insertColumnBefore` vào đúng chỗ — chạy được từ bất kỳ phiên bản cũ nào và chạy lại nhiều lần cũng không sao.
 - **Tiêu đề CSV phải qua `csvCell`**: `HEADERS` có ô chứa dấu phẩy ("Loại trụ dừng, nhà chờ"), `HEADERS.join(",")` trần sẽ làm hàng tiêu đề nhiều hơn hàng dữ liệu 1 cột và lệch toàn bộ khi mở bằng Excel.
 
 ## Schema dữ liệu
@@ -62,11 +62,30 @@ Key = STT (số). Value:
 - `sync` = thời điểm Apps Script **xác nhận đã ghi** dòng này vào Sheet. Rỗng = chưa lên Sheets → thẻ hiện nhãn vàng "Chưa đồng bộ", `unsynced()` gom lại để gửi tiếp. `saveDetail` xóa `sync` mỗi lần lưu vì nội dung đã đổi.
 - Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: lat, d1, d2, nhacho, vitri, loaitru, prio, note, photos.
 
-### Thứ tự 22 cột gửi lên (hàm `rowArray` trong index.html)
-`STT, Mã điểm dừng, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
+### Đề xuất bộ đèn pha LED (`deXuatDen` trong index.html)
+Tra bảng theo **"Hướng dẫn thực hiện khảo sát đề xuất phương án bổ sung, tăng cường chiếu sáng khu vực trụ dừng, nhà chờ xe buýt"** của Phòng Kỹ thuật — căn cứ VB 5104/TTGTHTKT-CXCS1 (31/7/2026) và 29093/SXD-HTKT (11/8/2026), thông số mô phỏng bằng DIALux.
 
-Cột 23 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
-Cột 18–20 là **link Drive**, chỉ xuất ra — không dựng lại được file ảnh từ link.
+`X` = khoảng cách trụ đèn hiện hữu → trụ dừng/nhà chờ theo hướng xe buýt lưu thông, **chính là ô `d1`**:
+
+| X | Công suất | Độ cao H | Góc α |
+|---|---|---|---|
+| 5 ≤ X ≤ 10 | 50 W | 6–10 m | 5–15° |
+| 10 < X ≤ 15 | 80 W | 6–10 m | 5–15° |
+| 15 < X ≤ 20 | 80 W | 7–10 m | 5–15° |
+
+- **Không lưu vào bản ghi**, luôn tính lại từ `d1`. Lưu sẵn thì sửa khoảng cách mà con số cũ vẫn nằm đó → sai mà không ai biết.
+- Mốc biên là **quy định**, không phải ước lượng: `X = 10` ra 50 W (dòng 1 bao gồm cả 10), `X = 10.1` mới lên 80 W. Có bộ test riêng cho 17 mốc.
+- Ngoài bảng (`X < 5` hoặc `X > 20`) ghi "Ngoài bảng" kèm cảnh báo, **không tự suy** ra công suất.
+- Có cả `d1` lẫn `d2` = nằm giữa 2 trụ → nhắc mục 2 của Hướng dẫn (chỉ lắp 1 bên).
+- `soMet()` nhận `6,5` (bàn phím tiếng Việt) nhưng `khoảng 6` thì trả `null` — đừng thay bằng `parseFloat` trần, nó biến `6,5` thành `6`.
+- **`baocao.html` giữ một bản sao của bảng này** (hai file không chia sẻ JS được) — sửa thì sửa cả hai.
+
+### Thứ tự 23 cột gửi lên (hàm `rowArray` trong index.html)
+`STT, Mã điểm dừng, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Bộ đèn pha đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
+
+Cột 24 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
+Cột 17 (`Bộ đèn pha đề xuất`) là **số liệu suy ra từ cột khoảng cách**, không lưu trong bản ghi — `pullFromSheets` không đọc nó về.
+Cột 19–21 là **link Drive**, chỉ xuất ra — không dựng lại được file ảnh từ link.
 Cột 2 (`Mã điểm dừng`) **chỉ 51 nhà chờ mới có**, 610 trụ dừng để rỗng vì danh sách gốc không có cột này.
 
 ### Đồng bộ Google Sheets

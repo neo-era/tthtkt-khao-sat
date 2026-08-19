@@ -28,18 +28,22 @@ var SHEET_NAME = 'KhaoSat';
 // Thư mục Google Drive chứa ảnh hiện trường (tự tạo trong Drive của tài khoản chạy script).
 var PHOTO_FOLDER = 'Anh khao sat chieu sang - Tram dung xe buyt';
 
-// 22 cột app gửi lên + 1 cột thời gian server nhận = 23 cột.
+// 23 cột app gửi lên + 1 cột thời gian server nhận = 24 cột.
 var HEADERS = [
   'STT', 'Mã điểm dừng', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
   'KC trụ đèn → trụ dừng (m)', 'KC trụ dừng → trụ đèn kế (m)',
   'Loại trụ dừng, nhà chờ', 'Vị trí trụ so với nhà chờ', 'Loại trụ đèn',
-  'Ưu tiên đề xuất', 'Ghi chú thêm',
+  'Ưu tiên đề xuất', 'Bộ đèn pha đề xuất', 'Ghi chú thêm',
   'Ảnh 1', 'Ảnh 2', 'Ảnh 3',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 23
-var APP_COLS = 22;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 24
+var APP_COLS = 23;                 // số cột app gửi
+
+// Độ rộng cột (pixel), khớp 1-1 với HEADERS. Thêm/bớt cột thì sửa cả hai.
+var COL_WIDTHS = [45, 90, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 130, 200,
+                  190, 190, 190, 120, 130, 130];
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -81,9 +85,9 @@ function doPost(e) {
 
     rows.forEach(function (r) {
       if (!Array.isArray(r)) return;
-      r = r.slice(0, APP_COLS);              // chỉ lấy 21 cột đầu
+      r = r.slice(0, APP_COLS);              // chỉ lấy phần cột app gửi
       while (r.length < APP_COLS) r.push('');
-      r.push(now);                            // cột 22: thời gian server nhận
+      r.push(now);                            // cột cuối: thời gian server nhận
 
       var stt = String(r[0]).trim();
       if (stt && sttToRow[stt]) {
@@ -207,9 +211,7 @@ function setupSheet() {
   sheet.setRowHeight(1, 40);
 
   // Độ rộng cột (đơn vị pixel)
-  var widths = [45, 90, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 200,
-                190, 190, 190, 120, 130, 130];
-  widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  COL_WIDTHS.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
 
   // Định dạng vùng dữ liệu
   sheet.getRange(2, 1, sheet.getMaxRows() - 1, NCOLS)
@@ -229,24 +231,37 @@ function setupSheet() {
 }
 
 /**
- * NÂNG CẤP BẢNG ĐANG CÓ DỮ LIỆU: chèn cột "Mã điểm dừng" vào vị trí thứ 2.
- * Chạy MỘT LẦN duy nhất, sau khi dán bản Code.gs mới này vào.
+ * NÂNG CẤP BẢNG ĐANG CÓ DỮ LIỆU cho khớp bố cục cột mới nhất.
+ * Chạy hàm này MỖI KHI dán bản Code.gs mới có thêm cột.
  *
  * ⚠ ĐỪNG dùng setupSheet để nâng cấp — hàm đó gọi sheet.clear(), mất sạch dữ liệu
  * khảo sát đã đồng bộ. insertColumnBefore giữ nguyên dữ liệu cũ, chỉ đẩy các cột
- * phía sau sang phải đúng một nấc cho khớp bố cục mới.
+ * phía sau sang phải cho khớp.
  *
- * Chạy lại lần hai không sao: thấy tiêu đề đã đúng thì bỏ qua.
+ * So tiêu đề hiện có với HEADERS: cột nào trong HEADERS mà bảng chưa có thì chèn
+ * vào đúng vị trí. Nhờ vậy chạy được từ BẤT KỲ phiên bản cũ nào (bảng 22 cột đời
+ * đầu, hay 23 cột đã có Mã điểm dừng), và chạy lại nhiều lần cũng không sao.
  */
-function themCotMaDiemDung() {
+function nangCapBang() {
   var sheet = getSheet_();
-  if (String(sheet.getRange(1, 2).getValue()).trim() === HEADERS[1]) {
-    SpreadsheetApp.getActive().toast('Bảng đã có cột "Mã điểm dừng", không cần làm gì.',
-      'Chiếu sáng khu vực Trung Tâm', 5);
-    return;
+  var lastCol = Math.max(1, sheet.getLastColumn());
+  var cur = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (v) {
+    return String(v === null || v === undefined ? '' : v).trim();
+  });
+
+  var them = [];
+  for (var i = 0; i < HEADERS.length; i++) {
+    if (cur[i] === HEADERS[i]) continue;
+    // Tiêu đề này chưa có ở đâu trong bảng → là cột mới, chèn vào đúng chỗ.
+    // Nếu nó đã nằm chỗ khác thì chỉ là đổi tên, để phần ghi lại tiêu đề xử lý.
+    if (cur.indexOf(HEADERS[i]) < 0) {
+      sheet.insertColumnBefore(i + 1);
+      sheet.setColumnWidth(i + 1, COL_WIDTHS[i]);
+      cur.splice(i, 0, HEADERS[i]);
+      them.push(HEADERS[i]);
+    }
   }
 
-  sheet.insertColumnBefore(2);
   sheet.getRange(1, 1, 1, NCOLS).setValues([HEADERS]);
   sheet.getRange(1, 1, 1, NCOLS)
        .setFontFamily('Times New Roman')
@@ -256,12 +271,15 @@ function themCotMaDiemDung() {
        .setHorizontalAlignment('center')
        .setVerticalAlignment('middle')
        .setWrap(true);
-  sheet.setColumnWidth(2, 90);
+  sheet.setFrozenRows(1);
   SpreadsheetApp.flush();
 
   SpreadsheetApp.getActive().toast(
-    'Đã chèn cột "Mã điểm dừng". Bảng giờ có ' + NCOLS + ' cột, dữ liệu cũ giữ nguyên.',
-    'Chiếu sáng khu vực Trung Tâm', 6);
+    them.length
+      ? ('Đã chèn ' + them.length + ' cột: ' + them.join(', ') + '. Bảng giờ có ' + NCOLS +
+         ' cột, dữ liệu cũ giữ nguyên.')
+      : ('Bảng đã đúng ' + NCOLS + ' cột, không cần đổi gì.'),
+    'Chiếu sáng khu vực Trung Tâm', 8);
 }
 
 /**
