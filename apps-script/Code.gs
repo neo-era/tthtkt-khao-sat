@@ -28,9 +28,9 @@ var SHEET_NAME = 'KhaoSat';
 // Thư mục Google Drive chứa ảnh hiện trường (tự tạo trong Drive của tài khoản chạy script).
 var PHOTO_FOLDER = 'Anh khao sat chieu sang - Tram dung xe buyt';
 
-// 21 cột app gửi lên + 1 cột thời gian server nhận = 22 cột.
+// 22 cột app gửi lên + 1 cột thời gian server nhận = 23 cột.
 var HEADERS = [
-  'STT', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
+  'STT', 'Mã điểm dừng', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
   'KC trụ đèn → trụ dừng (m)', 'KC trụ dừng → trụ đèn kế (m)',
   'Loại trụ dừng, nhà chờ', 'Vị trí trụ so với nhà chờ', 'Loại trụ đèn',
@@ -38,8 +38,8 @@ var HEADERS = [
   'Ảnh 1', 'Ảnh 2', 'Ảnh 3',
   'Người khảo sát', 'Thời gian lưu (máy)', 'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 22
-var APP_COLS = 21;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 23
+var APP_COLS = 22;                 // số cột app gửi
 var TZ = 'Asia/Ho_Chi_Minh';
 
 /**
@@ -207,7 +207,7 @@ function setupSheet() {
   sheet.setRowHeight(1, 40);
 
   // Độ rộng cột (đơn vị pixel)
-  var widths = [45, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 200,
+  var widths = [45, 90, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 200,
                 190, 190, 190, 120, 130, 130];
   widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
 
@@ -226,6 +226,42 @@ function setupSheet() {
   } catch (bandErr) { /* bỏ qua nếu môi trường không hỗ trợ */ }
 
   SpreadsheetApp.getActive().toast('Đã khởi tạo bảng "' + SHEET_NAME + '" với ' + NCOLS + ' cột.', 'Chiếu sáng khu vực Trung Tâm', 5);
+}
+
+/**
+ * NÂNG CẤP BẢNG ĐANG CÓ DỮ LIỆU: chèn cột "Mã điểm dừng" vào vị trí thứ 2.
+ * Chạy MỘT LẦN duy nhất, sau khi dán bản Code.gs mới này vào.
+ *
+ * ⚠ ĐỪNG dùng setupSheet để nâng cấp — hàm đó gọi sheet.clear(), mất sạch dữ liệu
+ * khảo sát đã đồng bộ. insertColumnBefore giữ nguyên dữ liệu cũ, chỉ đẩy các cột
+ * phía sau sang phải đúng một nấc cho khớp bố cục mới.
+ *
+ * Chạy lại lần hai không sao: thấy tiêu đề đã đúng thì bỏ qua.
+ */
+function themCotMaDiemDung() {
+  var sheet = getSheet_();
+  if (String(sheet.getRange(1, 2).getValue()).trim() === HEADERS[1]) {
+    SpreadsheetApp.getActive().toast('Bảng đã có cột "Mã điểm dừng", không cần làm gì.',
+      'Chiếu sáng khu vực Trung Tâm', 5);
+    return;
+  }
+
+  sheet.insertColumnBefore(2);
+  sheet.getRange(1, 1, 1, NCOLS).setValues([HEADERS]);
+  sheet.getRange(1, 1, 1, NCOLS)
+       .setFontFamily('Times New Roman')
+       .setFontWeight('bold')
+       .setFontColor('#FFFFFF')
+       .setBackground('#0F2A43')
+       .setHorizontalAlignment('center')
+       .setVerticalAlignment('middle')
+       .setWrap(true);
+  sheet.setColumnWidth(2, 90);
+  SpreadsheetApp.flush();
+
+  SpreadsheetApp.getActive().toast(
+    'Đã chèn cột "Mã điểm dừng". Bảng giờ có ' + NCOLS + ' cột, dữ liệu cũ giữ nguyên.',
+    'Chiếu sáng khu vực Trung Tâm', 6);
 }
 
 /**

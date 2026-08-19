@@ -187,12 +187,13 @@ function render(){
     const c=rec(STORE,r.stt);
     const g=r.phuong+" · "+r.diaban;
     if(g!==curG){ curG=g;
-      detail+='<tr class="grp"><td colspan="13">'+esc(curG)+'</td></tr>'; }
+      detail+='<tr class="grp"><td colspan="14">'+esc(curG)+'</td></tr>'; }
     const gps = c.lat? (c.lat+", "+c.lng) : "—";
     const prCls = c.prio==="Ưu tiên 1"?"pr-Cao":(c.prio==="Ưu tiên 2"?"pr-TB":"");
     detail+='<tr>'+
       '<td class="num">'+(i+1)+'</td>'+
       '<td class="num">'+esc(r.stt)+'</td>'+
+      '<td class="num">'+esc(r.ma||"—")+'</td>'+
       '<td><b>'+esc(r.duong)+'</b><br>'+esc(r.sonha||"—")+'</td>'+
       '<td>'+esc(r.loai||"—")+'</td>'+
       '<td>'+esc(gps)+'</td>'+
@@ -205,9 +206,9 @@ function render(){
       '<td>'+photoCell(c)+'</td>'+
       '<td>'+esc(c.by||"—")+'</td>'+
       '</tr>';
-    if(c.note){ detail+='<tr><td></td><td colspan="12"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
+    if(c.note){ detail+='<tr><td></td><td colspan="13"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
   });
-  if(!done.length) detail='<tr><td colspan="13" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
+  if(!done.length) detail='<tr><td colspan="14" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
 
   // phụ lục chưa khảo sát
   // phụ lục ảnh hiện trường
@@ -291,7 +292,7 @@ function render(){
     <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
       <tr>
-        <th>TT</th><th>STT danh mục</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
+        <th>TT</th><th>STT danh mục</th><th>Mã điểm dừng</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
         <th>KC trụ đèn → trụ dừng (m)</th><th>KC trụ dừng → trụ đèn kế (m)</th>
         <th>Loại trụ dừng, nhà chờ</th><th>Vị trí trụ so với nhà chờ</th><th>Loại trụ đèn</th>
         <th>Ưu tiên đề xuất</th><th>Ảnh hiện trường</th><th>Người KS</th>

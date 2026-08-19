@@ -1,7 +1,7 @@
 {
   "name": "Khảo sát chiếu sáng khu vực Trung Tâm",
   "short_name": "Khảo sát CS",
-  "description": "Khảo sát hiện trường bổ sung chiếu sáng công cộng tại 610 trạm dừng xe buýt địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh.",
+  "description": "Khảo sát hiện trường bổ sung chiếu sáng công cộng tại 661 trạm dừng và nhà chờ xe buýt địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh.",
   "id": "./index.html",
   "start_url": "./index.html",
   "scope": "./",

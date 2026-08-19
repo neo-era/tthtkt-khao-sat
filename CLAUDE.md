@@ -5,7 +5,13 @@ File ngữ cảnh cho Claude (Claude Code / Cowork) khi làm việc với repo n
 
 ## Dự án là gì
 
-Web app khảo sát hiện trường (mobile-first) để rà soát, đề xuất **bổ sung chiếu sáng công cộng** tại **610 trạm dừng xe buýt** do Trung tâm Quản lý Giao thông công cộng quản lý, **địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh**. Thuộc **Chiếu sáng khu vực Trung Tâm**.
+Web app khảo sát hiện trường (mobile-first) để rà soát, đề xuất **bổ sung chiếu sáng công cộng** tại **661 vị trí** do Trung tâm Quản lý Giao thông công cộng quản lý, **địa bàn Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh**. Thuộc **Chiếu sáng khu vực Trung Tâm**.
+
+Danh mục gồm **hai loại hạ tầng, hai chương trình công việc khác nhau**:
+- **610 trụ dừng** (STT 1–610) từ danh sách gốc của Trung tâm Quản lý GTCC — không có mã điểm dừng.
+- **51 nhà chờ** (STT 611–661) theo **công văn 2858**, thêm ngày 19/8/2026 — có mã điểm dừng (`Q3 101`, `QBTH 149`). Xem `tools/them_nha_cho_2858.py`.
+
+Phân biệt bằng cột `loai`: nhà chờ luôn bắt đầu bằng "Nhà chờ" (hàm `laNhaCho()` trong `index.html`), trụ dừng là "Trụ dừng loại …". Thẻ trong danh sách gắn nhãn **Nhà chờ** cho nhóm sau.
 
 Nguồn danh mục: `docs/DS TRẠM DỪNG XE BUÝT.xlsx` (Trung tâm Quản lý Giao thông công cộng – Sở Xây dựng TP.HCM). Danh mục 107 vị trí theo CV 3471/TTGTHTKT-CXCS1 **đã bỏ** từ 12/8/2026.
 
@@ -29,7 +35,9 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **21 cột** theo `rowArray()`; backend thêm cột 22 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **Số cột phải khớp**: app gửi đúng **22 cột** theo `rowArray()`; backend thêm cột 23 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **`COL` là nguồn duy nhất cho chỉ số cột.** `pullFromSheets` đọc Sheet theo vị trí cột; trước đây rải chỉ số cứng (`v[7]`, `v[15]`…) nên chèn một cột là phải dịch 20 chỗ, sai một chỗ thì dữ liệu vào nhầm trường mà **không có lỗi nào báo**. Đừng viết lại chỉ số trần, và giữ `COL` ngay cạnh `HEADERS`.
+- **Đổi bố cục cột trên Sheet đang có dữ liệu thì dùng hàm nâng cấp, KHÔNG chạy `setupSheet`** — hàm đó `sheet.clear()`, mất sạch dữ liệu đã đồng bộ. Mẫu có sẵn: `themCotMaDiemDung()` trong `Code.gs` (dùng `insertColumnBefore`, giữ nguyên dữ liệu cũ).
 - **Tiêu đề CSV phải qua `csvCell`**: `HEADERS` có ô chứa dấu phẩy ("Loại trụ dừng, nhà chờ"), `HEADERS.join(",")` trần sẽ làm hàng tiêu đề nhiều hơn hàng dữ liệu 1 cột và lệch toàn bộ khi mở bằng Excel.
 
 ## Schema dữ liệu
@@ -54,11 +62,12 @@ Key = STT (số). Value:
 - `sync` = thời điểm Apps Script **xác nhận đã ghi** dòng này vào Sheet. Rỗng = chưa lên Sheets → thẻ hiện nhãn vàng "Chưa đồng bộ", `unsynced()` gom lại để gửi tiếp. `saveDetail` xóa `sync` mỗi lần lưu vì nội dung đã đổi.
 - Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: lat, d1, d2, nhacho, vitri, loaitru, prio, note, photos.
 
-### Thứ tự 21 cột gửi lên (hàm `rowArray` trong index.html)
-`STT, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
+### Thứ tự 22 cột gửi lên (hàm `rowArray` trong index.html)
+`STT, Mã điểm dừng, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
 
-Cột 22 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
-Cột 17–19 là **link Drive**, chỉ xuất ra — `importCsv` bỏ qua (không dựng lại được file ảnh từ link).
+Cột 23 (server): `Thời gian nhận (server)` do `Code.gs` tự thêm.
+Cột 18–20 là **link Drive**, chỉ xuất ra — không dựng lại được file ảnh từ link.
+Cột 2 (`Mã điểm dừng`) **chỉ 51 nhà chờ mới có**, 610 trụ dừng để rỗng vì danh sách gốc không có cột này.
 
 ### Đồng bộ Google Sheets
 - URL Apps Script được nhúng sẵn (`DEFAULT_URL` trong index.html); ô nhập URL pre-fill bằng URL này.
@@ -129,13 +138,14 @@ URL backend lấy từ `lavipco_ks_url_run` — `index.html` ghi key này mỗi 
 
 ### Danh mục vị trí gốc (nguồn dữ liệu chuẩn)
 Mảng `RAW` (JSON, 1 dòng duy nhất) nhúng trong `<script>` của `index.html`. Mỗi phần tử:
-`{ stt, diaban, ten, duong, sonha, phuong, loai, ghichu }`.
-- `diaban` = địa bàn quận: `Quận 1` / `Quận 3` / `Quận 5` / `Quận 8` / `Quận 10` / `Quận 11` / `Phú Nhuận` / `Bình Thạnh` (dùng cho chip lọc). Suy ra từ mã ở cột 6 file Excel, vì danh mục mới chỉ còn tên phường sau sáp nhập.
+`{ stt, ma, diaban, ten, duong, sonha, phuong, loai, ghichu }`.
+- `ma` = **Mã điểm dừng** của Trung tâm Quản lý GTCC (`Q3 101`, `QBTH 149`). Chỉ 49/51 nhà chờ có; 610 trụ dừng và 2 nhà chờ Điện Biên Phủ để rỗng.
+- `diaban` = địa bàn quận: `Quận 1` / `Quận 3` / `Quận 5` / `Quận 8` / `Quận 10` / `Quận 11` / `Phú Nhuận` / `Bình Thạnh` (dùng cho chip lọc). Trụ dừng suy từ mã ở cột 6 file Excel; nhà chờ suy từ tiền tố mã điểm dừng.
 - `phuong` = phường/xã đã bỏ tiền tố "Phường/Xã/Thị trấn" (dùng cho ô chọn + tiêu đề nhóm).
 - `ten` = `duong – sonha` (nhãn dễ đọc, chỉ dùng cho CSV/báo cáo).
-- `loai` = hạ tầng (Trụ dừng loại 1/2/3/4/4S/5/5S, Trụ dừng, Trụ biển báo).
-- `ghichu` luôn rỗng (nguồn mới không có cột này) nhưng giữ lại để không phá schema.
-- `stt` đánh lại 1…610 **sau khi** đã sắp theo địa bàn → phường/xã, nên STT tăng dần đúng theo thứ tự hiển thị. STT **không** khớp với dòng trong file Excel (cột STT trong Excel là công thức SUBTOTAL, giá trị cache đã hỏng).
+- `loai` = hạ tầng. Trụ dừng loại 1/2/3/4/4S/5/5S, Trụ dừng, Trụ biển báo — hoặc **Nhà chờ …** với 51 vị trí của công văn 2858.
+- `ghichu` rỗng với trụ dừng; 4 nhà chờ thiếu phường mang ghi chú *"Phường suy đoán từ công văn 2858, cần xác nhận"* và **hiện lên màn chi tiết** để cán bộ biết mà kiểm lại.
+- `stt`: **610 trụ dừng giữ số 1…610 vĩnh viễn**, nhà chờ nhận 611…661. Dữ liệu khảo sát trong localStorage và trên Sheet đều khóa theo STT — đánh số lại là mất sạch dữ liệu hiện trường. Vị trí mới vẫn được chèn đúng chỗ sắp xếp (địa bàn → phường) nên **STT không còn tăng dần theo thứ tự hiển thị**. STT cũng **không** khớp dòng trong file Excel (cột STT trong Excel là công thức SUBTOTAL, giá trị cache đã hỏng).
 
 Đây là **dữ liệu chỉ đọc**, không sửa khi khảo sát.
 
@@ -143,8 +153,11 @@ Mảng `RAW` (JSON, 1 dòng duy nhất) nhúng trong `<script>` của `index.htm
 
 ```bash
 pip install openpyxl
-python tools/build_raw.py     # đọc docs/DS TRẠM DỪNG XE BUÝT.xlsx → thay dòng `const RAW = [...]` trong index.html
+python tools/build_raw.py           # 610 trụ dừng — GHI ĐÈ cả mảng RAW
+python tools/them_nha_cho_2858.py   # chèn lại 51 nhà chờ, STT 611+
 ```
+
+**Đúng thứ tự đó**: `build_raw.py` ghi đè nguyên mảng `RAW` nên chạy sau sẽ xóa mất 51 nhà chờ, danh mục tụt về 610. `them_nha_cho_2858.py` chạy lại nhiều lần không nhân đôi (bỏ qua mã đã có).
 
 **Đừng sửa tay JSON trong `index.html`** — dễ sai dấu/escape. Nếu đổi danh mục: thay file Excel trong `docs/` rồi chạy lại script.
 

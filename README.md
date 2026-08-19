@@ -1,6 +1,6 @@
 # Khảo sát chiếu sáng khu vực Trung Tâm
 
-Ứng dụng web khảo sát hiện trường (chạy trên điện thoại) để rà soát, đề xuất **bổ sung hệ thống chiếu sáng công cộng** tại **610 trạm dừng xe buýt** do Trung tâm Quản lý Giao thông công cộng quản lý, địa bàn **Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh**.
+Ứng dụng web khảo sát hiện trường (chạy trên điện thoại) để rà soát, đề xuất **bổ sung hệ thống chiếu sáng công cộng** tại **661 vị trí** (610 trụ dừng + 51 nhà chờ theo công văn 2858) do Trung tâm Quản lý Giao thông công cộng quản lý, địa bàn **Quận 1, 3, 5, 8, 10, 11, Phú Nhuận, Bình Thạnh**.
 
 > Nguồn danh mục: `docs/DS TRẠM DỪNG XE BUÝT.xlsx` — Danh sách trạm dừng xe buýt do Trung tâm Quản lý Giao thông công cộng (Sở Xây dựng TP.HCM) quản lý.
 
@@ -10,9 +10,9 @@
 
 | Thành phần | Tập tin | Công dụng |
 |---|---|---|
-| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 610 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất Excel/CSV, đồng bộ. |
+| **Web app khảo sát** | `index.html` | Chạy trên điện thoại: nạp sẵn 661 vị trí, lấy GPS, chụp ảnh, lưu offline, xuất Excel/CSV, đồng bộ. |
 | **Backend Google Sheets** | `apps-script/Code.gs` | Nhận dữ liệu từ app, lưu vào Google Sheet (có chống trùng theo STT). |
-| **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc (3.754 dòng); `tools/build_raw.py` lọc ra 610 vị trí trong phạm vi và nạp vào `index.html`. |
+| **Danh mục nguồn** | `docs/DS TRẠM DỪNG XE BUÝT.xlsx` | File Excel gốc (3.754 dòng); `tools/build_raw.py` lọc ra 610 trụ dừng trong phạm vi và nạp vào `index.html`; `tools/them_nha_cho_2858.py` chèn thêm 51 nhà chờ. |
 | **Biểu mẫu Excel** | `docs/Bieu_mau_khao_sat_...xlsx` | ⚠️ Phiếu Excel cũ, **vẫn theo danh mục 107 vị trí đã bỏ** — cần dựng lại nếu còn dùng. |
 | **PWA** | `manifest.json`, `sw.js`, `icons/` | Cài được vào máy như app thật, mở được cả khi mất sóng. |
 
@@ -78,7 +78,7 @@ Rồi vào **Settings → Pages** bật như bước 5 ở trên.
 ## 4. Cách sử dụng ngoài hiện trường
 
 1. **Cài app vào máy** (xem mục 4b). Lần đầu phải mở khi có mạng để máy lưu app lại.
-2. Màn hình danh sách: lọc theo địa bàn (chip), chọn **phường/xã** ở ô bên dưới, lọc trạng thái hoặc gõ tìm kiếm; xem tiến độ X/610 ở trên cùng. Danh sách nạp dần 200 vị trí mỗi lần (nút **Xem thêm**).
+2. Màn hình danh sách: lọc theo địa bàn (chip), chọn **phường/xã** ở ô bên dưới, lọc trạng thái hoặc gõ tìm kiếm; xem tiến độ X/661 ở trên cùng. Danh sách nạp dần 200 vị trí mỗi lần (nút **Xem thêm**).
 3. Chạm một vị trí → bấm **Định vị** để lấy tọa độ GPS, nhập 2 khoảng cách (trụ đèn ↔ trụ dừng, trụ dừng ↔ trụ đèn kế), chọn **Loại trụ dừng/nhà chờ**, **Vị trí trụ so với nhà chờ**, **Loại trụ đèn**, **Ưu tiên đề xuất**, chụp **tối đa 3 ảnh**, ghi chú thêm → **Lưu khảo sát điểm này**. Bộ trường bám theo bảng giấy *Tổng hợp kết quả tính toán lựa chọn bộ đèn LED*.
    - **Bấm Định vị trước khi chụp ảnh** — ảnh được đóng dấu tọa độ ngay lúc chụp, chưa có tọa độ thì trên ảnh ghi "chưa lấy được".
 4. Dữ liệu được **lưu ngay trên điện thoại** (đóng app mở lại không mất). Có mạng thì ảnh tự lên **Google Drive** trước, rồi dòng dữ liệu kèm link ảnh lên **Google Sheets**. Mỗi ảnh cũng tự lưu một bản về bộ nhớ máy.
@@ -151,12 +151,12 @@ Mỗi người mở cùng một link, đồng bộ về **cùng một Google She
 App còn **đọc ngược từ Sheet** nên máy này thấy được điểm người khác đã làm: mỗi lần mở app, khi có mạng trở lại, và khi mở bảng **Xuất dữ liệu**. Điểm nào máy anh đang sửa mà chưa gửi lên được thì **không bị đè** — bản trên máy luôn được ưu tiên cho tới khi gửi thành công.
 
 **Muốn nhập liệu trên máy tính?**
-Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngược từ file. Excel/CSV chỉ để **xuất** ra xem/lưu trữ (đủ 610 dòng). Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
+Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngược từ file. Excel/CSV chỉ để **xuất** ra xem/lưu trữ (đủ 661 dòng). Biểu mẫu `docs/Bieu_mau_khao_sat_...xlsx` vẫn theo danh mục 107 vị trí cũ, chưa dựng lại theo danh mục mới.
 
 **Tải dữ liệu ra Excel?**
 Bấm **📊 Tải dữ liệu Excel (.xlsx)** trong bảng *Xuất dữ liệu*. Đây là file Excel thật, không phải CSV đổi đuôi: font Times New Roman, cố định hàng tiêu đề, có nút lọc trên từng cột, độ rộng cột đặt sẵn, và **tọa độ / khoảng cách lưu dạng số** nên tính trung bình, sắp xếp, vẽ biểu đồ được ngay.
 
-Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. File xuất đủ **610 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
+Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. File xuất đủ **661 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
 
 > Nút **Tải file CSV** vẫn còn làm bản dự phòng, dùng khi máy không mở được `.xlsx`.
 
@@ -189,7 +189,7 @@ chieu-sang-trung-tam/
 ├── tools/
 │   └── build_raw.py        # Nạp danh mục từ Excel vào index.html
 └── docs/
-    ├── DS TRẠM DỪNG XE BUÝT.xlsx                       # Danh mục nguồn (3.754 dòng, lọc còn 610)
+    ├── DS TRẠM DỪNG XE BUÝT.xlsx                       # Danh mục nguồn (3.754 dòng, lọc còn 610 trụ dừng)
     └── Bieu_mau_khao_sat_chieu_sang_mang_xanh_v1.0.xlsx # Biểu mẫu cũ (danh mục 107 vị trí)
 ```
 

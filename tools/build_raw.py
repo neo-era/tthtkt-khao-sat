@@ -14,6 +14,13 @@ Phạm vi: chỉ lấy các dòng CÓ mã ở cột 6 (610 vị trí thuộc 8 q
 (khu vực TP.HCM ngoài 8 quận, Vũng Tàu, Bình Dương) không thuộc phạm vi, bị bỏ qua.
 
 Đích  : dòng `const RAW = [...];` trong index.html (thay nguyên dòng).
+
+⚠ Script này GHI ĐÈ toàn bộ mảng RAW, nên nó xóa luôn 51 nhà chờ của công văn 2858.
+Chạy xong phải chạy tiếp `python tools/them_nha_cho_2858.py` để chèn lại, nếu không
+danh mục tụt từ 661 xuống 610 vị trí.
+
+Danh sách gốc không có cột Mã điểm dừng nên 610 vị trí này để `ma` rỗng; chỉ nhà chờ
+lấy từ công văn 2858 mới có mã.
 """
 import io
 import json
@@ -77,6 +84,7 @@ def main():
         sonha = cell(ws.cell(r, 3).value)
         raw.append({
             "stt": 0,
+            "ma": "",                      # danh sách gốc không có Mã điểm dừng
             "diaban": DIABAN[ma],
             "ten": duong + (" – " + sonha if sonha else ""),
             "duong": duong,
