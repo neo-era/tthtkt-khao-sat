@@ -108,7 +108,7 @@
     color:var(--ink-2);border-radius:9px;padding:8px 10px;font-weight:700;font-size:12.5px}
   .cardld.xong{background:#DCF3E4;border-color:#A7DEBB;color:#166534}
   /* bảng nhập lắp đặt */
-  .ldhead{margin:0 0 12px;font-size:13px;color:var(--muted)}
+  .ldhead{margin:0;padding:0 0 12px;font-size:13px;color:var(--muted);top:44px}
   .ldgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
   .ldgrid label,.ldlb{display:block;font-size:11.5px;font-weight:700;color:var(--muted);
     text-transform:uppercase;letter-spacing:.3px}
@@ -207,10 +207,18 @@
   .scrim{position:fixed;inset:0;background:rgba(15,35,53,.45);z-index:70;display:none}
   .scrim.show{display:block}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:71;background:var(--card);border-radius:18px 18px 0 0;
-    padding:8px 16px calc(env(safe-area-inset-bottom) + 18px);transform:translateY(100%);transition:transform .28s ease;max-width:760px;margin:0 auto}
+    padding:0 16px calc(env(safe-area-inset-bottom) + 18px);transform:translateY(100%);transition:transform .28s ease;max-width:760px;margin:0 auto;
+    /* Bảng cao hơn màn hình (bảng lắp đặt có 8 ô + 3 ảnh) thì phải tự cuộn được,
+       không thì phần đầu bị đẩy khỏi mép trên và không ai kéo lại được.
+       dvh cho điện thoại: vh tính cả thanh địa chỉ nên hụt mất một khúc. */
+    max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);
+    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
   .sheet.show{transform:translateY(0)}
-  .grab{width:40px;height:4px;background:var(--line);border-radius:99px;margin:8px auto 14px}
-  .sheet h3{margin:0 0 4px;font-size:16px;color:var(--ink)}
+  /* Tay nắm + tiêu đề dính lại khi cuộn, để luôn biết đang ở bảng nào, điểm nào */
+  .sheet .grab,.sheet h3,.sheet .ldhead{position:sticky;z-index:2;background:var(--card)}
+  .grab{width:40px;height:4px;background:var(--line);border-radius:99px;margin:0 auto 14px;
+    top:0;padding:8px 0;background-clip:content-box}
+  .sheet h3{margin:0 0 4px;font-size:16px;color:var(--ink);top:20px;padding-bottom:2px}
   .sheet p{margin:0 0 14px;font-size:13px;color:var(--muted)}
   .sheet .btn{width:100%;margin-bottom:9px}
   .btn-export{background:var(--green);color:#fff}
@@ -680,6 +688,8 @@ function ngayVN(s){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||""); return m?(m
    khác trong app đều ghi dd/mm/yyyy. Lưu theo kiểu Việt Nam, đổi qua lại ở ô nhập. */
 function ngayISO(s){ const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(s||"").trim());
   return m?(m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0")):(s||""); }
+function homNayISO(){ const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
 function renderList(){
   const list=document.getElementById("list"); list.innerHTML="";
   const all=RAW.filter(matches);
@@ -1554,7 +1564,10 @@ function moLapDat(stt){
     "STT "+stt+(r.ma?" · "+r.ma:"")+" · "+(r.duong||"")+
     (r.sonha?(" · vị trí theo văn bản: "+r.sonha):"")+" · "+(r.phuong||"");
   Object.keys(LD_O).forEach(k=>{
-    document.getElementById(LD_O[k]).value = (k==="ngay") ? ngayISO(o.ngay) : (o[k]||"");
+    /* Ngày lắp đặt: chưa có thì điền sẵn hôm nay — đội thi công cập nhật ngay trong
+       ngày, khỏi phải chọn tay. Đã có rồi thì giữ nguyên, đừng đè lên. */
+    document.getElementById(LD_O[k]).value =
+      (k==="ngay") ? (o.ngay ? ngayISO(o.ngay) : homNayISO()) : (o[k]||"");
   });
   renderPhotos("ld"); veThieuLD();
   document.getElementById("scrimLD").classList.add("show");
