@@ -49,8 +49,14 @@
   .kpi .box b{display:block;font-size:22px;color:var(--ink);line-height:1.1}
   .kpi .box span{font-size:12px;color:var(--muted)}
   .grp{background:#E8EEF4;font-weight:700}
-  .detail{font-size:10px}
-  .detail th,.detail td{padding:3px 4px;word-break:break-word}
+  /* Bảng nhiều cột PHẢI chia cột cố định. Để trình duyệt tự chia thì nó bóp các cột
+     có chữ ngắt được xuống còn 1 ký tự (word-break cho phép ngắt giữa chữ), ra cái
+     bảng mỗi cột một chữ cái xếp dọc — đã gặp thật. Bề rộng khai bằng <colgroup>. */
+  .detail{font-size:10px;table-layout:fixed}
+  .detail th,.detail td{padding:3px 4px;word-break:break-word;overflow-wrap:anywhere}
+  /* Hai bảng rộng in ngang, phần còn lại in dọc — giống hệt cách chia trong file Word */
+  @page ngang{ size:A4 landscape; margin:10mm }
+  .ngang{ page:ngang }
   .pr-Cao{color:#C62828;font-weight:700}
   .pr-TB{color:#B45309;font-weight:700}
   .pr-Thap{color:#1E8E3E;font-weight:700}
@@ -462,8 +468,10 @@ function render(){
     <p><i>Vị trí có khoảng cách ngoài khoảng 5 – 20 m không nằm trong bảng tra, báo cáo
     ghi rõ là “ngoài bảng” để đơn vị xem xét riêng chứ không tự nội suy công suất.</i></p>
 
-    <h2 data-kho="ngang">IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
+    <div class="ngang" data-kho="ngang">
+    <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
+      <colgroup><col style="width:3%"><col style="width:4.5%"><col style="width:4.5%"><col style="width:9.3%"><col style="width:6.5%"><col style="width:6%"><col style="width:5.5%"><col style="width:5.5%"><col style="width:7%"><col style="width:6%"><col style="width:6%"><col style="width:5.5%"><col style="width:6.5%"><col style="width:10%"><col style="width:7.7%"><col style="width:6.5%"></colgroup>
       <tr>
         <th>TT</th><th>STT danh mục</th><th>Mã điểm dừng</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
         <th>KC trụ đèn → trụ dừng (m)</th><th>KC trụ dừng → trụ đèn kế (m)</th>
@@ -480,6 +488,7 @@ function render(){
     danh mục trạm dừng; <i>Trước số nhà</i> là địa chỉ của trụ đèn nên có thể khác.</p>
     <p><b>Đã lắp đặt ${soXongLD}/${done.length}</b> vị trí đã khảo sát${soDangLD?(', '+soDangLD+' vị trí đang cập nhật dở'):''}.</p>
     <table class="detail">
+      <colgroup><col style="width:7%"><col style="width:12%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:5%"><col style="width:5%"><col style="width:11%"><col style="width:7%"><col style="width:11%"><col style="width:8%"><col style="width:3%"><col style="width:7%"></colgroup>
       <tr>
         <th>Trụ chiếu sáng số……</th><th>Trước số nhà…</th><th>Đường</th><th>Tủ điều khiển</th><th>Phường</th>
         <th>Số lượng cần đèn</th><th>Số lượng đèn pha</th><th>Loại đèn</th><th>Ngày lắp đặt</th>
@@ -488,6 +497,8 @@ function render(){
       </tr>
       ${ldRows}
     </table>
+
+    </div>
 
     <h2 data-kho="doc">VI. Phụ lục: Vị trí chưa khảo sát</h2>
     <table>
@@ -720,8 +731,9 @@ function catSection(page){
   /* Cắt theo thuộc tính data-kho trên thẻ h2, KHÔNG dò số La Mã. Cách cũ bám vào
      "IV." / "V." nên thêm một mục là gãy hết bố cục khổ giấy mà không ai thấy. */
   Array.prototype.slice.call(page.childNodes).forEach(n=>{
-    if(n.nodeType===1 && n.tagName==="H2"){
-      const k=n.getAttribute("data-kho");
+    if(n.nodeType===1){
+      // Mốc có thể là thẻ h2 hoặc khối bọc <div class="ngang"> chứa nhiều mục
+      const k=n.getAttribute && n.getAttribute("data-kho");
       if(k==="ngang") cur=1;
       else if(k==="doc") cur=2;
     }
