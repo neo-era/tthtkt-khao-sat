@@ -80,6 +80,12 @@ Tra bảng theo **"Hướng dẫn thực hiện khảo sát đề xuất phươn
 - `soMet()` nhận `6,5` (bàn phím tiếng Việt) nhưng `khoảng 6` thì trả `null` — đừng thay bằng `parseFloat` trần, nó biến `6,5` thành `6`.
 - **`baocao.html` giữ một bản sao của bảng này** (hai file không chia sẻ JS được) — sửa thì sửa cả hai.
 
+**Căn cứ lựa chọn** (`canCuDen` trong `baocao.html`): bảng chi tiết mục IV có thêm cột ghi vì sao chọn bộ đèn đó — `Mục 1 · 5 ≤ X ≤ 10 m · H 6 – 10 m · α 5 – 15°`, thêm `· lắp 1 bên` khi có cả `d2` (mục 2, nằm giữa 2 trụ). Mục III có bảng giải mã Mục 1/2/3 để đọc được cột này. Khoảng X sinh từ `BANG_DEN`, không viết cứng.
+
+Hai chỗ **cố tình không khẳng định**: `X > 20 m` chỉ ghi *"cân nhắc mục 3"* chứ không ghi thẳng "trồng trụ STK 6 m" — Hướng dẫn định nghĩa mục 3 là *không có trụ chiếu sáng*, còn đây là có trụ nhưng ở xa, suy sang mục 3 là phán đoán của người đọc. `X < 5 m` cũng chỉ ghi *"xem xét riêng"*.
+
+Cột căn cứ **chỉ có trong báo cáo**, không có trong `rowArray`/Sheet — thêm vào đó là phải chạy `nangCapBang` + deploy lại. Bảng chi tiết mục IV vì vậy có **16 cột**; đổi số cột thì phải sửa kèm `colspan` (2 chỗ dùng số cột đầy đủ, 1 chỗ dùng số cột − 1 ở dòng ghi chú).
+
 ### Thứ tự 23 cột gửi lên (hàm `rowArray` trong index.html)
 `STT, Mã điểm dừng, Địa bàn, Tên vị trí, Tuyến đường, Số nhà, Phường/Xã, Hạ tầng, Vĩ độ, Kinh độ, KC trụ đèn→trụ dừng(m), KC trụ dừng→trụ đèn kế(m), Loại trụ dừng nhà chờ, Vị trí trụ so với nhà chờ, Loại trụ đèn, Ưu tiên đề xuất, Bộ đèn pha đề xuất, Ghi chú thêm, Ảnh 1, Ảnh 2, Ảnh 3, Người KS, Thời gian lưu`
 

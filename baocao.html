@@ -132,6 +132,27 @@ function denText(d1){
   if(!d) return "";
   return d.w ? ("LED "+d.w+"W") : "Ngoài bảng";
 }
+/* Câu căn cứ ngắn cho từng vị trí: thuộc mục nào của Hướng dẫn, X rơi vào khoảng
+   nào, độ cao và góc chiếu kèm theo. Khoảng X lấy từ BANG_DEN chứ không viết cứng
+   — sửa bảng tra một chỗ là căn cứ đổi theo.
+
+   Hai chỗ cố tình KHÔNG khẳng định:
+   - X > 20 m chỉ ghi "cân nhắc mục 3". Hướng dẫn định nghĩa mục 3 là "không có trụ
+     chiếu sáng", còn đây là có trụ nhưng ở xa — suy sang mục 3 là phán đoán, phải
+     để người đọc quyết.
+   - X < 5 m cũng ngoài bảng, không nội suy công suất. */
+function canCuDen(d1,d2){
+  const x=soMet(d1);
+  if(x===null) return "Chưa đo khoảng cách";
+  if(x<5)  return "Ngoài bảng · X < 5 m · xem xét riêng";
+  if(x>BANG_DEN[BANG_DEN.length-1].toi) return "Ngoài bảng · X > 20 m · cân nhắc mục 3";
+  let i=0; while(x>BANG_DEN[i].toi) i++;
+  const khoang = i===0 ? "5 ≤ X ≤ "+BANG_DEN[0].toi+" m"
+                       : BANG_DEN[i-1].toi+" < X ≤ "+BANG_DEN[i].toi+" m";
+  const giua = soMet(d2)!==null;          // có cả 2 khoảng cách = nằm giữa 2 trụ
+  return (giua?"Mục 2":"Mục 1")+" · "+khoang+" · H "+BANG_DEN[i].cao+" · α 5 – 15°"+
+         (giua?" · lắp 1 bên":"");
+}
 
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
 function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v3"))||{}; }catch(e){ return {}; } }
@@ -241,7 +262,7 @@ function render(){
     const c=rec(STORE,r.stt);
     const g=r.phuong+" · "+r.diaban;
     if(g!==curG){ curG=g;
-      detail+='<tr class="grp"><td colspan="15">'+esc(curG)+'</td></tr>'; }
+      detail+='<tr class="grp"><td colspan="16">'+esc(curG)+'</td></tr>'; }
     const gps = c.lat? (c.lat+", "+c.lng) : "—";
     const prCls = c.prio==="Ưu tiên 1"?"pr-Cao":(c.prio==="Ưu tiên 2"?"pr-TB":"");
     detail+='<tr>'+
@@ -258,12 +279,13 @@ function render(){
       '<td>'+esc(c.loaitru||"—")+'</td>'+
       '<td class="'+prCls+'">'+esc(c.prio||"—")+'</td>'+
       '<td class="num">'+esc(denText(c.d1)||"—")+'</td>'+
+      '<td>'+esc(canCuDen(c.d1,c.d2))+'</td>'+
       '<td>'+photoCell(c)+'</td>'+
       '<td>'+esc(c.by||"—")+'</td>'+
       '</tr>';
-    if(c.note){ detail+='<tr><td></td><td colspan="14"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
+    if(c.note){ detail+='<tr><td></td><td colspan="15"><i>Ghi chú: '+esc(c.note)+'</i></td></tr>'; }
   });
-  if(!done.length) detail='<tr><td colspan="15" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
+  if(!done.length) detail='<tr><td colspan="16" class="num">Chưa có vị trí nào được khảo sát.</td></tr>';
 
   // phụ lục chưa khảo sát
   // phụ lục ảnh hiện trường
@@ -355,8 +377,18 @@ function render(){
       ${denRows}
     </table>
     ${denNgoaiTxt}
-    <p><i>Vị trí nằm giữa 2 trụ chiếu sáng hiện hữu chỉ lắp 1 bên (mục 2 của Hướng dẫn);
-    vị trí không có trụ chiếu sáng thì trồng trụ STK cao 6 m rồi lắp theo mục 1.</i></p>
+    <p>Ba trường hợp của Hướng dẫn, cũng là mã ghi ở cột <i>Căn cứ lựa chọn</i> trong mục IV:</p>
+    <table>
+      <tr><th>Mã</th><th>Trường hợp</th><th>Phương án</th></tr>
+      <tr><td class="num"><b>Mục 1</b></td><td>Trụ dừng / nhà chờ nằm gần trụ chiếu sáng hiện hữu</td>
+        <td>Lắp bộ đèn pha LED trên trụ hiện hữu, công suất tra theo bảng trên</td></tr>
+      <tr><td class="num"><b>Mục 2</b></td><td>Nằm giữa 2 trụ chiếu sáng hiện hữu</td>
+        <td>Chỉ lắp 1 bên, theo phương án mục 1</td></tr>
+      <tr><td class="num"><b>Mục 3</b></td><td>Không có trụ chiếu sáng</td>
+        <td>Trồng trụ STK cao 6 m rồi lắp theo phương án mục 1</td></tr>
+    </table>
+    <p><i>Vị trí có khoảng cách ngoài khoảng 5 – 20 m không nằm trong bảng tra, báo cáo
+    ghi rõ là “ngoài bảng” để đơn vị xem xét riêng chứ không tự nội suy công suất.</i></p>
 
     <h2>IV. Tổng hợp kết quả tính toán lựa chọn bộ đèn LED</h2>
     <table class="detail">
@@ -364,7 +396,8 @@ function render(){
         <th>TT</th><th>STT danh mục</th><th>Mã điểm dừng</th><th>Tuyến đường / Vị trí</th><th>Hạ tầng</th><th>Tọa độ GPS</th>
         <th>KC trụ đèn → trụ dừng (m)</th><th>KC trụ dừng → trụ đèn kế (m)</th>
         <th>Loại trụ dừng, nhà chờ</th><th>Vị trí trụ so với nhà chờ</th><th>Loại trụ đèn</th>
-        <th>Ưu tiên đề xuất</th><th>Bộ đèn pha đề xuất</th><th>Ảnh hiện trường</th><th>Người KS</th>
+        <th>Ưu tiên đề xuất</th><th>Bộ đèn pha đề xuất</th><th>Căn cứ lựa chọn</th>
+        <th>Ảnh hiện trường</th><th>Người KS</th>
       </tr>
       ${detail}
     </table>
