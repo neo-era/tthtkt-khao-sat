@@ -38,6 +38,13 @@
   .loc select{flex:none;padding:7px 9px;border:1px solid var(--line);border-radius:9px;
     background:var(--card);color:var(--text);font:inherit;font-size:13px}
   .loc .dem{flex:none;align-self:center;font-size:12.5px;color:var(--muted);white-space:nowrap;padding-left:4px}
+  .loc button{flex:none;padding:7px 11px;border:1px solid var(--line);border-radius:9px;
+    background:var(--card);color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .loc button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+  .loc button[disabled]{opacity:.6;cursor:default}
+  /* chấm vị trí của mình — cùng kiểu chấm xanh quen thuộc của các app bản đồ */
+  .toi{width:16px;height:16px;border-radius:50%;background:#1A73E8;border:3px solid #fff;
+    box-shadow:0 0 0 1px rgba(0,0,0,.3),0 1px 4px rgba(0,0,0,.4)}
   #map{flex:1;min-height:0;background:#dfe6ec}
   .chugiai{flex:none;background:var(--card);border-top:1px solid var(--line);
     padding:8px 12px calc(env(safe-area-inset-bottom) + 8px);display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted)}
@@ -76,6 +83,7 @@
   <select id="fHaTang"></select>
   <select id="fTrangThai"></select>
   <select id="fPrio"></select>
+  <button id="btnToi" type="button">📍 Vị trí của tôi</button>
   <span class="dem" id="dem">—</span>
 </div>
 
@@ -85,6 +93,7 @@
   <span><i style="background:#1565C0"></i>Đã khảo sát</span>
   <span><i style="background:#C62828"></i>Ưu tiên 1</span>
   <span><i style="background:#1E8E3E"></i>Đã lắp đặt</span>
+  <span><i style="background:#1A73E8"></i>Vị trí của tôi</span>
   <span id="thieu"></span>
 </div>
 
@@ -174,8 +183,19 @@ function tuMay(){
 
 /* ---------- bản đồ ---------- */
 let map, lopDiem, DIEM=[];
+let viTriToi=null, chamToi=null, vongToi=null, dangTheoDoi=0;
 const MAU={ ld:"#1E8E3E", u1:"#C62828", ks:"#1565C0" };
 function mauCua(d){ return d.ldXong ? MAU.ld : (d.prio==="Ưu tiên 1" ? MAU.u1 : MAU.ks); }
+
+/* Khoảng cách theo đường chim bay (haversine), đủ chính xác ở cỡ vài trăm mét
+   và không cần thư viện. Chỉ để cán bộ ước lượng điểm nào gần mình. */
+function khoangCach(a,b,c,d){
+  const R=6371000, r=x=>x*Math.PI/180;
+  const dp=r(c-a), dl=r(d-b);
+  const h=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dl/2)*Math.sin(dl/2);
+  return Math.round(2*R*Math.asin(Math.sqrt(h)));
+}
+function chuKhoangCach(m){ return m<1000 ? (m+" m") : ((m/1000).toFixed(1)+" km"); }
 
 function anhNho(u){
   const m=/[-\w]{25,}/.exec(u||"");
@@ -190,6 +210,7 @@ function noiDungPopup(d){
 
   const hang=[];
   const them=(k,v)=>{ if(v) hang.push("<tr><td>"+k+"</td><td>"+esc(v)+"</td></tr>"); };
+  if(viTriToi) them("Cách bạn", chuKhoangCach(khoangCach(viTriToi.lat,viTriToi.lng,d.lat,d.lng)));
   them("Hạ tầng", d.loai);
   them("KC trụ đèn → trụ dừng", d.d1 && (d.d1+" m"));
   them("KC trụ dừng → trụ đèn kế", d.d2 && (d.d2+" m"));
@@ -220,12 +241,80 @@ function noiDungPopup(d){
   '</div>';
 }
 
+/* ---------- ĐỊNH VỊ VỊ TRÍ HIỆN TẠI ----------
+   Bấm lần đầu: bám theo vị trí (watchPosition) và đưa bản đồ về chỗ mình đứng.
+   Bấm lần nữa: tắt bám. Dùng watch thay vì lấy một lần vì cán bộ vừa đi vừa xem,
+   lấy một lần là chấm đứng yên trong khi người đã đi chỗ khác. */
+function veChamToi(p){
+  const lat=p.coords.latitude, lng=p.coords.longitude, acc=Math.round(p.coords.accuracy||0);
+  const dauTien=!viTriToi;
+  viTriToi={lat:lat,lng:lng,acc:acc};
+
+  if(!chamToi){
+    chamToi=L.marker([lat,lng],{ icon:L.divIcon({className:"",html:'<div class="toi"></div>',
+      iconSize:[16,16], iconAnchor:[8,8]}), zIndexOffset:1000, keyboard:false }).addTo(map);
+    vongToi=L.circle([lat,lng],{ radius:acc, color:"#1A73E8", weight:1,
+      fillColor:"#1A73E8", fillOpacity:.12 }).addTo(map);
+  } else {
+    chamToi.setLatLng([lat,lng]);
+    vongToi.setLatLng([lat,lng]).setRadius(acc);
+  }
+  chamToi.bindPopup("<div class=\"pop\"><b>Vị trí của bạn</b><div class=\"sub\">Sai số ±"+acc+" m</div></div>");
+
+  const nut=document.getElementById("btnToi");
+  nut.textContent="📍 Đang bám vị trí (±"+acc+"m)";
+  nut.classList.add("on"); nut.disabled=false;
+
+  // Chỉ tự đưa bản đồ về chỗ mình ở lần định vị đầu; sau đó để người dùng tự kéo,
+  // không thì đang xem chỗ khác lại bị giật về liên tục.
+  if(dauTien) map.setView([lat,lng], Math.max(map.getZoom(),16));
+  // Popup các điểm hiện thêm dòng "Cách bạn …" nên phải dựng lại — giữ nguyên khung nhìn
+  veLai(true);
+}
+function loiDinhVi(err){
+  tatTheoDoi();
+  const ly = err && err.code===1 ? "Bạn đã từ chối quyền vị trí. Hãy cấp lại quyền cho trang này trong cài đặt trình duyệt."
+           : err && err.code===3 ? "Quá lâu không lấy được tín hiệu. Ra chỗ thoáng rồi thử lại."
+           : "Không lấy được vị trí. Hãy bật GPS rồi thử lại.";
+  bao("<b>Không định vị được</b><br>"+esc(ly)+
+      '<br><br><button onclick="xoaBao()" style="padding:7px 14px">Đóng</button>');
+}
+function tatTheoDoi(){
+  if(dangTheoDoi){ navigator.geolocation.clearWatch(dangTheoDoi); dangTheoDoi=0; }
+  const nut=document.getElementById("btnToi");
+  nut.textContent="📍 Vị trí của tôi"; nut.classList.remove("on"); nut.disabled=false;
+}
+function batTheoDoi(){
+  if(dangTheoDoi){                       // đang bám → bấm lần nữa là tắt
+    tatTheoDoi();
+    if(chamToi){ map.removeLayer(chamToi); map.removeLayer(vongToi); chamToi=vongToi=null; }
+    viTriToi=null; veLai(true);
+    return;
+  }
+  if(!navigator.geolocation){
+    bao("<b>Thiết bị không hỗ trợ định vị.</b>"+
+        '<br><br><button onclick="xoaBao()" style="padding:7px 14px">Đóng</button>');
+    return;
+  }
+  // Định vị chỉ chạy qua https (hoặc localhost) — mở file trực tiếp là trình duyệt chặn
+  if(location.protocol!=="https:" && location.hostname!=="localhost" && location.hostname!=="127.0.0.1"){
+    bao("<b>Trình duyệt chặn định vị.</b><br>Chức năng này chỉ chạy khi mở trang qua <b>https://</b>."+
+        '<br><br><button onclick="xoaBao()" style="padding:7px 14px">Đóng</button>');
+    return;
+  }
+  const nut=document.getElementById("btnToi");
+  nut.textContent="📍 Đang định vị…"; nut.disabled=true;
+  dangTheoDoi=navigator.geolocation.watchPosition(veChamToi, loiDinhVi,
+    {enableHighAccuracy:true, timeout:15000, maximumAge:5000});
+}
+
 function veChon(id, ds, nhan){
   const sel=document.getElementById(id);
   sel.innerHTML="";
   ds.forEach(v=>{ const o=document.createElement("option"); o.value=v;
     o.textContent = v==="Tất cả" ? nhan : v; sel.appendChild(o); });
-  sel.onchange=veLai;
+  // gọi qua hàm bọc: gán thẳng thì đối tượng sự kiện lọt vào tham số giuKhungNhin
+  sel.onchange=()=>veLai();
 }
 function locHienTai(){
   const g=id=>document.getElementById(id).value;
@@ -241,7 +330,10 @@ function hop(d,f){
   if(f.pr!=="Tất cả" && d.prio!==f.pr) return false;
   return true;
 }
-function veLai(){
+/* giuKhungNhin = true: vẽ lại chấm nhưng KHÔNG kéo bản đồ về khung cũ. Cần khi
+   vị trí của mình cập nhật liên tục — không thì cứ vài giây bản đồ lại giật về
+   khung bao tất cả các điểm, đang xem chỗ nào cũng bị mất. */
+function veLai(giuKhungNhin){
   const f=locHienTai();
   // Ô phường chỉ liệt kê phường thuộc địa bàn đang chọn
   const phuongs=["Tất cả"].concat([...new Set(DIEM
@@ -269,7 +361,7 @@ function veLai(){
   document.getElementById("thieu").textContent =
     thieu ? (thieu+" điểm chưa có tọa độ nên không lên bản đồ") : "";
 
-  if(coToaDo.length){
+  if(coToaDo.length && !giuKhungNhin){
     const b=L.latLngBounds(coToaDo.map(d=>[d.lat,d.lng]));
     map.fitBounds(b,{padding:[30,30],maxZoom:17});
   }
@@ -290,6 +382,7 @@ function dungBanDo(nguon){
   veChon("fTrangThai",["Tất cả","Đã khảo sát","Đã lắp đặt","Chưa lắp đặt"],"Tất cả trạng thái");
   veChon("fPrio",["Tất cả","Ưu tiên 1","Ưu tiên 2"],"Tất cả mức ưu tiên");
   veLai();
+  document.getElementById("btnToi").onclick=batTheoDoi;
   xoaBao();
 }
 

@@ -163,6 +163,11 @@ Trang **chỉ đọc**, tách riêng khỏi app khảo sát. Đọc thẳng `?ac
 - Chỉ vẽ điểm **có toạ độ hợp lệ**; số điểm thiếu toạ độ ghi rõ ở chú giải chứ không lặng lẽ bỏ. Thực tế 590/609 dòng có toạ độ.
 - Màu chấm: xanh lá = đã lắp đặt, đỏ = Ưu tiên 1, xanh dương = đã khảo sát. Popup gồm địa chỉ, nhãn trạng thái, số liệu khảo sát, thông tin lắp đặt, ảnh thu nhỏ và link mở Google Maps.
 - Lọc theo địa bàn / phường / hạ tầng / trạng thái / ưu tiên; ô phường tự thu theo địa bàn đang chọn.
+- **Định vị vị trí hiện tại** (nút *📍 Vị trí của tôi*): dùng `watchPosition` chứ không phải `getCurrentPosition` — cán bộ vừa đi vừa xem, lấy một lần là chấm đứng yên trong khi người đã đi chỗ khác. Bấm lần nữa thì tắt bám và xoá chấm.
+  - **Chỉ tự đưa bản đồ về chỗ mình ở lần định vị đầu** (`dauTien`); các lần cập nhật sau chỉ dời chấm. Không thì đang xem chỗ khác lại bị giật về liên tục.
+  - Vì vậy `veLai()` có tham số **`giuKhungNhin`**: gọi từ `veChamToi` phải là `veLai(true)` để không `fitBounds` lại. Cẩn thận khi gán `onchange` — `sel.onchange=()=>veLai()` chứ không phải `sel.onchange=veLai`, gán thẳng thì đối tượng sự kiện lọt vào tham số này.
+  - Biết vị trí thì popup mỗi điểm thêm dòng **Cách bạn …** (`khoangCach`, haversine, làm tròn mét).
+  - Định vị **chỉ chạy qua `https://`** (hoặc localhost) — có kiểm tra trước và báo rõ, giống GPS trong app khảo sát.
 - **Leaflet nạp từ CDN kèm `integrity`** (SRI): nội dung trên CDN đổi là trình duyệt chặn, không chạy bừa. Đổi phiên bản Leaflet thì phải tính lại mã băm.
 
 ### Trang báo cáo (`baocao.html`)
