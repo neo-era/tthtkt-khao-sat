@@ -148,6 +148,18 @@ python tools/build_raw.py     # đọc docs/DS TRẠM DỪNG XE BUÝT.xlsx → t
 
 **Đừng sửa tay JSON trong `index.html`** — dễ sai dấu/escape. Nếu đổi danh mục: thay file Excel trong `docs/` rồi chạy lại script.
 
+## Đối chiếu công văn 2858 (`tools/doi_chieu_2858.py`)
+
+Script một lần, đối chiếu danh sách nhà chờ trong công văn 2858 với 610 trụ dừng đang khảo sát → `docs/Doi_chieu_2858_v1.0.xlsx`. Chỉ ĐỌC `index.html`, không sửa app.
+
+**Điều quan trọng nhất, đừng tìm lại từ đầu**: danh mục 610 vị trí là **100% trụ dừng** (loại 1/2/3/4/4S/5/5S) — cả 3.754 dòng file nguồn không có lấy một dòng nhà chờ. Còn công văn 2858 **toàn nhà chờ** (6180, 3090, 1876S, 2666, 3299, N03…). Hai bên đếm **hai loại hạ tầng khác nhau**, nên gần như không có vị trí trùng: 58 nhà chờ (39 chiếu sáng + 19 mảng xanh, 7 vị trí có ở cả hai → 51 riêng biệt) chỉ khớp đúng địa chỉ **1 vị trí** (Pasteur 178 = STT 69).
+
+Hai bẫy khi so khớp địa chỉ:
+- **Phải so cả phường.** Tra "Lê Lợi" trong danh sách gốc ra 43 vị trí nhưng 32 ở **Vũng Tàu**, 11 ở **Hóc Môn**, không có vị trí nào ở Quận 1. Khớp theo tên đường thôi là gán nhầm sang tỉnh khác. "Phạm Văn Đồng" cũng vậy — 3 vị trí đều ở Thủ Đức.
+- **Không có khóa chung.** Công văn định danh bằng *Mã điểm dừng* (`Q3 101`), file nguồn và mảng `RAW` đều không có cột mã. Nên kết quả chỉ là gợi ý vị trí lân cận, không phải khẳng định trùng.
+
+Sheet `DS1` của công văn cấu trúc không đều: một ô địa chỉ chứa nhiều vị trí (ngăn bằng `+`), dòng tiêu đề nhóm C tự nó mang địa chỉ còn cột "Tuyến đường" để trống (chỉ đọc dòng có cột đó thì ra 18 chứ không phải 19), và 2 vị trí Điện Biên Phủ không có mã trạm.
+
 Biểu mẫu Excel (`docs/Bieu_mau_khao_sat_...xlsx`) trước đây do `build_form.py` sinh (script nằm ngoài repo) và **chưa được dựng lại** theo danh mục mới.
 
 ## Quy ước của Chiếu sáng khu vực Trung Tâm (áp dụng cho mọi file xuất)

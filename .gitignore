@@ -1,3 +1,7 @@
 .DS_Store
 Thumbs.db
 *.tmp
+
+# Python: doi_chieu_2858.py import build_raw nên sinh ra thư mục này
+__pycache__/
+*.pyc
