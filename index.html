@@ -54,12 +54,18 @@
   .locbox{display:none;margin-top:8px;padding:12px;border:1px solid var(--line);
     border-radius:10px;background:var(--card)}
   .locbox.show{display:block}
-  .locxuat{display:none;gap:10px;align-items:flex-start;margin:0 0 12px;padding:11px 13px;
-    border:1px solid #C5DBF2;border-radius:11px;background:#E8F1FB}
-  .locxuat.show{display:flex}
-  .locxuat input{margin-top:2px;flex:none;width:18px;height:18px}
-  .locxuat b{display:block;font-size:13.5px;color:#12406E}
-  .locxuat i{display:block;font-size:12.5px;color:#3B6690;font-style:normal;margin-top:2px}
+  /* Bộ lọc ngay trong bảng Xuất dữ liệu — cùng một bộ trạng thái với màn danh sách */
+  .xuatloc{margin:0 0 12px;padding:12px;border:1px solid #C5DBF2;border-radius:11px;background:#E8F1FB}
+  .lgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .lgrid label{display:block;font-size:11px;font-weight:700;color:#3B6690;
+    text-transform:uppercase;letter-spacing:.3px}
+  .lgrid select,.lgrid input{width:100%;margin-top:4px;padding:8px 9px;border:1px solid #C5DBF2;
+    border-radius:9px;background:var(--card);color:var(--text);font:inherit;font-size:13.5px}
+  .lgrid.mo{opacity:.45;pointer-events:none}
+  .lsum{margin-top:11px}
+  .lsum b{display:block;font-size:13.5px;color:#12406E}
+  .lsum i{display:block;font-size:12.5px;color:#3B6690;font-style:normal;margin-top:2px}
+  .xuatloc .btn{margin-top:10px}
   .locbox label{display:block;font-size:12px;font-weight:700;color:var(--muted);
     margin:10px 0 5px;text-transform:uppercase;letter-spacing:.3px}
   .locbox label:first-child{margin-top:0}
@@ -355,10 +361,20 @@
   <div class="grab"></div>
   <h3>Xuất dữ liệu &amp; báo cáo</h3>
   <p id="expSummary">—</p>
-  <label class="locxuat" id="locXuatWrap">
-    <input type="checkbox" id="cbLocXuat" checked>
-    <span><b id="locXuatDem">—</b><i id="locXuatMo"></i></span>
-  </label>
+  <div class="xuatloc">
+    <div class="seg seg-sm" id="segPhamVi"></div>
+    <div class="lgrid" id="locXuatO">
+      <label>Địa bàn<select id="selXDiaban"></select></label>
+      <label>Phường/xã<select id="selXPhuong"></select></label>
+      <label>Trạng thái<select id="selXTrangThai"></select></label>
+      <label>Hạ tầng<select id="selXLoai"></select></label>
+      <label>Ưu tiên<select id="selXPrio"></select></label>
+      <label>Khảo sát từ ngày<input id="xTu" type="date"></label>
+      <label>đến ngày<input id="xDen" type="date"></label>
+    </div>
+    <div class="lsum"><b id="locXuatDem">—</b><i id="locXuatMo"></i></div>
+    <button class="btn btn-ghost" id="btnXuatLocXoa" type="button">Bỏ hết bộ lọc</button>
+  </div>
   <button class="btn btn-export" id="btnInstall" style="display:none">⬇️ Cài app vào máy</button>
   <a class="btn btn-ghost" href="huongdan.html" style="text-decoration:none;color:var(--ink-2)">📖 Xem hướng dẫn sử dụng</a>
   <a class="btn btn-ghost" id="btnBaoCao" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
@@ -514,7 +530,7 @@ function xoaHetLoc(){
   filterStatus="all"; filterDistrict="Tất cả"; filterWard="Tất cả";
   filterLoai="Tất cả"; filterPrio="Tất cả"; filterTu=""; filterDen=""; query="";
   document.getElementById("q").value="";
-  resetPaging(); renderChips(); renderWards(); veLocThem(); renderList(); updateExpSummary();
+  capNhatLoc();
 }
 /* Ngày khảo sát suy từ ô "Thời gian lưu" (`at`). Chuỗi này không cùng một dạng:
    máy ghi ra "15:20:11 12/8/2026", chỗ khác lại "13/08/2026 09:10". Nên chỉ bắt
@@ -1270,24 +1286,58 @@ function updateExpSummary(){
     (nu?(" Còn "+nu+" điểm chưa lên Sheets."):" Tất cả đã lên Sheets.")+
     (np?(" Còn "+np+" ảnh chưa lên Drive."):"");
 
-  // Ô "chỉ xuất phần đang lọc" chỉ hiện khi thật sự có lọc, khỏi rối lúc xuất cả danh mục
-  const co=soLocDangDung()>0, wrap=document.getElementById("locXuatWrap");
-  wrap.classList.toggle("show", co);
-  if(co){
-    document.getElementById("locXuatDem").textContent=
-      "Chỉ xuất phần đang lọc — "+RAW.filter(matches).length+"/"+RAW.length+" vị trí";
-    document.getElementById("locXuatMo").textContent=moTaLoc();
-  }
+  veLocXuat();
+}
+
+/* ---------- BỘ LỌC NGAY TRONG BẢNG XUẤT DỮ LIỆU ----------
+   Dùng CHUNG bộ trạng thái với màn danh sách (filterDistrict, filterWard…), không
+   nuôi bộ lọc thứ hai — hai bộ lọc song song là kiểu gì cũng có lúc lệch nhau và
+   cán bộ xuất ra không đúng thứ đang nhìn. Sửa ở đây thì màn danh sách đổi theo. */
+let xuatToanBo = false;
+function veSelect(id, opts, dangChon, khiDoi){
+  const sel=document.getElementById(id);
+  sel.innerHTML="";
+  opts.forEach(([v,l])=>{
+    const o=document.createElement("option"); o.value=v; o.textContent=l;
+    sel.appendChild(o);
+  });
+  sel.value=dangChon;
+  sel.onchange=()=>{ khiDoi(sel.value); capNhatLoc(); };
+}
+function capNhatLoc(){
+  resetPaging(); renderChips(); renderWards(); veLocThem(); renderList(); updateExpSummary();
+}
+function veLocXuat(){
+  const seg=document.getElementById("segPhamVi"); seg.innerHTML="";
+  [["Theo bộ lọc",false],["Toàn bộ danh mục",true]].forEach(([nhan,v])=>{
+    const b=document.createElement("button"); b.type="button"; b.textContent=nhan;
+    b.className = (xuatToanBo===v) ? "on" : "";
+    b.onclick=()=>{ xuatToanBo=v; veLocXuat(); };
+    seg.appendChild(b);
+  });
+  document.getElementById("locXuatO").classList.toggle("mo", xuatToanBo);
+
+  const doi=(a,b)=>[a,b];
+  veSelect("selXDiaban", districts().map(d=>doi(d,d)), filterDistrict,
+    v=>{ filterDistrict=v; filterWard="Tất cả"; });
+  veSelect("selXPhuong", wards().map(w=>doi(w, w==="Tất cả"?"Tất cả phường/xã":w)), filterWard,
+    v=>filterWard=v);
+  veSelect("selXTrangThai", [["all","Tất cả"],["done","Đã khảo sát"],["pending","Chưa khảo sát"]],
+    filterStatus, v=>filterStatus=v);
+  veSelect("selXLoai", ["Tất cả","Trụ dừng","Nhà chờ"].map(x=>doi(x,x)), filterLoai, v=>filterLoai=v);
+  veSelect("selXPrio", ["Tất cả"].concat(PRIO).map(x=>doi(x,x)), filterPrio, v=>filterPrio=v);
+  document.getElementById("xTu").value=filterTu;
+  document.getElementById("xDen").value=filterDen;
+
+  const n=dsXuat().length;
+  document.getElementById("locXuatDem").textContent="Sẽ xuất "+n+"/"+RAW.length+" vị trí";
+  document.getElementById("locXuatMo").textContent =
+    xuatToanBo ? "Xuất trọn danh mục, bỏ qua bộ lọc."
+               : (moTaLoc() || "Chưa đặt bộ lọc nào — đang là trọn danh mục.");
 }
 /* Danh sách sẽ được xuất ra: theo bộ lọc đang chọn, hoặc toàn bộ danh mục. */
-function dsXuat(){
-  const cb=document.getElementById("cbLocXuat");
-  return (soLocDangDung()>0 && cb && cb.checked) ? RAW.filter(matches) : RAW;
-}
-function locDangApDung(){
-  const cb=document.getElementById("cbLocXuat");
-  return (soLocDangDung()>0 && cb && cb.checked) ? moTaLoc() : "";
-}
+function dsXuat(){ return xuatToanBo ? RAW : RAW.filter(matches); }
+function locDangApDung(){ return xuatToanBo ? "" : moTaLoc(); }
 
 /* ---------- helpers ---------- */
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
@@ -1328,6 +1378,11 @@ document.getElementById("btnLocThem").onclick=()=>{
   document.getElementById("btnLocThem").setAttribute("aria-expanded", mo?"true":"false");
 };
 document.getElementById("btnLocXoa").onclick=xoaHetLoc;
+document.getElementById("btnXuatLocXoa").onclick=()=>{ xuatToanBo=false; xoaHetLoc(); };
+["xTu","xDen"].forEach(id=>document.getElementById(id).addEventListener("change",e=>{
+  if(id==="xTu") filterTu=e.target.value; else filterDen=e.target.value;
+  capNhatLoc();
+}));
 /* Chuyển bộ lọc sang trang báo cáo. Gửi thẳng DANH SÁCH STT chứ không gửi điều kiện
    lọc — baocao.html khỏi phải chép lại logic lọc, và không bao giờ lệch với app. */
 document.getElementById("btnBaoCao").addEventListener("click",()=>{

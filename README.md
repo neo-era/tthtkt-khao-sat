@@ -158,7 +158,9 @@ Nhập thẳng vào Google Sheet — app không còn chức năng nhập ngượ
 **Tải dữ liệu ra Excel?**
 Bấm **📊 Tải dữ liệu Excel (.xlsx)** trong bảng *Xuất dữ liệu*. Đây là file Excel thật, không phải CSV đổi đuôi: font Times New Roman, cố định hàng tiêu đề, có nút lọc trên từng cột, độ rộng cột đặt sẵn, và **tọa độ / khoảng cách lưu dạng số** nên tính trung bình, sắp xếp, vẽ biểu đồ được ngay.
 
-Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. File xuất đủ **661 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
+Ô khoảng cách gõ kiểu `6,5` vẫn được hiểu là số; gõ kiểu `khoảng 20` thì giữ nguyên chữ. Mặc định xuất đủ **661 dòng**, cả những vị trí chưa khảo sát (các ô để trống).
+
+**Chọn phạm vi xuất:** ngay trong bảng *Xuất dữ liệu* có khối lọc theo **địa bàn, phường/xã, đã/chưa khảo sát, trụ dừng hay nhà chờ, mức ưu tiên** và **khoảng ngày khảo sát**, kèm dòng *“Sẽ xuất N/661 vị trí”*. Excel, CSV và báo cáo đều theo phạm vi đó; báo cáo trích lọc in rõ dòng **Phạm vi báo cáo** dưới tiêu đề. Bộ lọc dùng chung với màn danh sách nên chỉnh ở đâu cũng được.
 
 > Nút **Tải file CSV** vẫn còn làm bản dự phòng, dùng khi máy không mở được `.xlsx`.
 
