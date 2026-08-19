@@ -41,6 +41,8 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - `COL` chỉ còn mô tả bố cục **chiều ghi lên** (`rowArray`), giữ cạnh `HEADERS` cho hai thứ không lệch nhau.
 - **`doPost` từ chối ghi khi bảng chưa nâng cấp** (`cotConThieu_`): ghi theo vị trí vào bảng cũ chính là thứ đã đè mất một dòng khảo sát thật. Từ chối thì app giữ nhãn *Chưa đồng bộ* và gửi lại sau, không mất gì.
 - **Đổi bố cục cột trên Sheet đang có dữ liệu thì dùng hàm nâng cấp, KHÔNG chạy `setupSheet`** — hàm đó `sheet.clear()`, mất sạch dữ liệu đã đồng bộ. Dùng `nangCapBang()` trong `Code.gs`: nó so tiêu đề hiện có với `HEADERS`, thiếu cột nào thì `insertColumnBefore` vào đúng chỗ — chạy được từ bất kỳ phiên bản cũ nào và chạy lại nhiều lần cũng không sao.
+- **Cột thừa sau cột 35 là rác của lần đổi bố cục**: `nangCapBang` chèn cột vào giữa nên ô của dòng từng bị lệch bị đẩy ra ngoài vùng có tiêu đề (cột 36+) — app không thấy nhưng Sheet vẫn giữ. Dọn bằng `donDepCotThua()` trong `Code.gs`; hàm ghi ra Nhật ký từng ô có dữ liệu trước khi xoá.
+- **`?action=status` trả `cols` (số cột bản Code.gs đang chạy) và `colsSheet` (số cột bảng thật)** — cách duy nhất nhìn từ bên ngoài để biết bản deploy có phải bản mới không. Deploy mà quên bấm *New version* thì URL vẫn chạy code cũ, và chuyện đó đã xảy ra: một dòng đồng bộ lúc 19/8/2026 16:28 bị backend cũ ghi mốc thời gian server vào cột 24 (`Trụ chiếu sáng số`) vì bản cũ chỉ biết 24 cột.
 - **Tiêu đề CSV phải qua `csvCell`**: `HEADERS` có ô chứa dấu phẩy ("Loại trụ dừng, nhà chờ"), `HEADERS.join(",")` trần sẽ làm hàng tiêu đề nhiều hơn hàng dữ liệu 1 cột và lệch toàn bộ khi mở bằng Excel.
 
 ## Schema dữ liệu

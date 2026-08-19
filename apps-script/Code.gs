@@ -196,11 +196,16 @@ function doGet(e) {
     }
   }
 
+  // `cols` = số cột bản Code.gs ĐANG CHẠY mong đợi, `colsSheet` = số cột bảng
+  // đang có. Deploy xong mà quên bấm "New version" thì URL vẫn chạy bản cũ và
+  // không có cách nào nhìn ra từ bên ngoài — hai số này trả lời đúng câu đó.
   return jsonOut_({
     ok: true,
     service: 'Chiếu sáng khu vực Trung Tâm – Khảo sát chiếu sáng',
     sheet: SHEET_NAME,
     total: Math.max(0, sheet.getLastRow() - 1),
+    cols: NCOLS,
+    colsSheet: sheet.getLastColumn(),
     time: nowStr_()
   });
 }
@@ -295,6 +300,51 @@ function nangCapBang() {
       ? ('Đã chèn ' + them.length + ' cột: ' + them.join(', ') + '. Bảng giờ có ' + NCOLS +
          ' cột, dữ liệu cũ giữ nguyên.')
       : ('Bảng đã đúng ' + NCOLS + ' cột, không cần đổi gì.'),
+    'Chiếu sáng khu vực Trung Tâm', 8);
+}
+
+/**
+ * Xoá các cột thừa nằm SAU cột 35 — rác còn lại của những lần đổi bố cục.
+ *
+ * `nangCapBang` chèn cột mới vào giữa nên mọi thứ bên phải bị đẩy ra ngoài vùng
+ * có tiêu đề. Dòng nào từng bị lệch cột (ghi bằng bản app/backend cũ) sẽ để lại
+ * một ô lạc ở cột 36+ — không hiện trong app nhưng vẫn nằm trên Sheet.
+ *
+ * Hàm LIỆT KÊ trước rồi mới xoá, và ghi rõ từng ô có dữ liệu bị mất trong Log
+ * (Xem → Nhật ký) để còn đối chiếu. Không bao giờ đụng tới 35 cột chính thức.
+ * Chạy tay từ trình soạn thảo Apps Script, không cần deploy.
+ */
+function donDepCotThua() {
+  var sheet = getSheet_();
+  var last = sheet.getLastColumn();
+  if (last <= NCOLS) {
+    SpreadsheetApp.getActive().toast('Bảng đúng ' + NCOLS + ' cột, không có cột thừa.',
+      'Chiếu sáng khu vực Trung Tâm', 6);
+    return;
+  }
+
+  var soCot = last - NCOLS;
+  var soDong = Math.max(0, sheet.getLastRow() - 1);
+  var mat = [];
+  if (soDong > 0) {
+    var vung = sheet.getRange(2, NCOLS + 1, soDong, soCot).getValues();
+    var stt = sheet.getRange(2, 1, soDong, 1).getValues();
+    for (var i = 0; i < vung.length; i++) {
+      for (var k = 0; k < vung[i].length; k++) {
+        var v = vung[i][k];
+        if (v !== '' && v !== null) {
+          mat.push('STT ' + stt[i][0] + ' · cột ' + (NCOLS + 1 + k) + ' = ' + v);
+        }
+      }
+    }
+  }
+  mat.forEach(function (d) { Logger.log('Ô bị xoá: ' + d); });
+
+  sheet.deleteColumns(NCOLS + 1, soCot);
+  SpreadsheetApp.flush();
+  SpreadsheetApp.getActive().toast(
+    'Đã xoá ' + soCot + ' cột thừa (từ cột ' + (NCOLS + 1) + ').' +
+    (mat.length ? ' ' + mat.length + ' ô có dữ liệu — xem Nhật ký thực thi.' : ' Toàn bộ đều rỗng.'),
     'Chiếu sáng khu vực Trung Tâm', 8);
 }
 
