@@ -36,6 +36,10 @@
   .progbar{height:7px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden}
   .progbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,#34D399,#10B981);
     border-radius:99px;transition:width .35s ease}
+  /* Thanh lắp đặt để màu hổ phách (cùng màu biểu tượng đèn) — hai thanh cùng dải
+     xanh lá thì liếc qua không phân biệt được đang xem tiến độ nào. */
+  .progrow.ld{margin-top:9px}
+  .progbar.ld > i{background:linear-gradient(90deg,#FBBF24,#F59E0B)}
   /* ---------- tools row ---------- */
   .tools{position:sticky;top:0;z-index:40;background:var(--bg);padding:10px 12px 6px;border-bottom:1px solid var(--line)}
   .search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
@@ -253,6 +257,8 @@
     <div class="progwrap">
       <div class="progrow"><span>Tiến độ khảo sát</span><span><b id="pDone">0</b> / <span id="pTotal">0</span></span></div>
       <div class="progbar"><i id="pBar"></i></div>
+      <div class="progrow ld"><span>Tiến độ lắp đặt</span><span><b id="pLD">0</b> / <span id="pLDTotal">0</span></span></div>
+      <div class="progbar ld"><i id="pLDBar"></i></div>
     </div>
   </header>
 
@@ -571,12 +577,27 @@ function wards(){
   set.sort((a,b)=>a.localeCompare(b,"vi"));
   return ["Tất cả",...set];
 }
+/* Hàng chip trạng thái là MỘT nhóm loại trừ nhau, nhưng bắc qua HAI biến lọc:
+   3 chip đầu là `filterStatus` (khảo sát), 2 chip sau là `filterLD` (lắp đặt).
+   Dùng lại đúng `filterLD` của khối "Lọc thêm" chứ không đẻ thêm biến thứ ba —
+   hai chỗ cùng nói một chuyện thì sớm muộn cũng lệch nhau. Vì vậy bấm chip phải
+   gọi capNhatLoc() để "Lọc thêm" và bảng Xuất dữ liệu vẽ lại theo. */
 function renderChips(){
   const wrap=document.getElementById("chips"); wrap.innerHTML="";
-  const status=[["all","Tất cả"],["pending","Chưa khảo sát"],["done","Đã khảo sát"]];
-  status.forEach(([v,l])=>{
-    const b=document.createElement("button"); b.className="chip"+(filterStatus===v?" on":"");
-    b.textContent=l; b.onclick=()=>{filterStatus=v;resetPaging();renderChips();renderList();}; wrap.appendChild(b);
+  const status=[
+    ["all",    "Tất cả",       "Tất cả"],
+    ["pending","Chưa khảo sát","Tất cả"],
+    ["done",   "Đã khảo sát",  "Tất cả"],
+    ["all",    "Đã lắp đặt",   "Đã lắp đặt"],
+    ["all",    "Chưa lắp đặt", "Chưa lắp đặt"],
+  ];
+  status.forEach(([v,l,ldv])=>{
+    // Sáng khi khớp CẢ HAI vế. Ghép tay trong "Lọc thêm" ra tổ hợp không có ở đây
+    // (vd đã khảo sát + chưa lắp đặt) thì không chip nào sáng — đúng thực tế, hơn
+    // là sáng một chip nửa vời rồi bấm vào lại mất nốt vế kia.
+    const b=document.createElement("button");
+    b.className="chip"+((filterStatus===v&&filterLD===ldv)?" on":"");
+    b.textContent=l; b.onclick=()=>{filterStatus=v;filterLD=ldv;capNhatLoc();}; wrap.appendChild(b);
   });
   const sep=document.createElement("span"); sep.style.cssText="flex:none;width:1px;background:var(--line);margin:4px 2px"; wrap.appendChild(sep);
   districts().forEach(d=>{
@@ -601,7 +622,9 @@ function buildSegLoc(id, opts, lay, dat){
   opts.forEach(o=>{
     const b=document.createElement("button"); b.type="button"; b.dataset.v=o; b.textContent=o;
     b.className = lay()===o ? "on" : "";
-    b.onclick=()=>{ dat(o); resetPaging(); veLocThem(); renderList(); updateExpSummary(); };
+    // Đi qua capNhatLoc để hàng chip vẽ lại: "Tình trạng lắp đặt" ở đây và 2 chip
+    // lắp đặt trên hàng chip là CÙNG một biến filterLD, không vẽ lại là chip sáng sai.
+    b.onclick=()=>{ dat(o); capNhatLoc(); };
     seg.appendChild(b);
   });
 }
@@ -745,11 +768,22 @@ function renderList(){
   }
   updateProgress();
 }
+/* Hai thanh dùng CHUNG mẫu số là cả danh mục (661), không phải "trên số điểm đã
+   khảo sát" — cùng một thước đo thì liếc qua là so được còn bao xa. Thanh lắp đặt
+   đếm theo daLapDat: đủ 7 trường + ít nhất 1 ảnh, y như nhãn trên thẻ và ô lọc. */
 function updateProgress(){
-  const total=RAW.length; let done=0; RAW.forEach(r=>{ if(isDone(r.stt)) done++; });
+  const total=RAW.length; let done=0, xong=0;
+  RAW.forEach(r=>{ if(isDone(r.stt)) done++; if(daLapDat(r.stt)) xong++; });
+  // Đếm được vài điểm trên 661 thì phần trăm làm tròn ra 0 và thanh trống trơn —
+  // nhìn như hỏng. Có điểm nào là để lại một vạch mỏng; con số bên phải mới là
+  // căn cứ, thanh chỉ để liếc.
+  const beRong=n=>!total||!n ? "0%" : Math.max(1.5, n/total*100).toFixed(1)+"%";
   document.getElementById("pTotal").textContent=total;
   document.getElementById("pDone").textContent=done;
-  document.getElementById("pBar").style.width=(total?Math.round(done/total*100):0)+"%";
+  document.getElementById("pBar").style.width=beRong(done);
+  document.getElementById("pLDTotal").textContent=total;
+  document.getElementById("pLD").textContent=xong;
+  document.getElementById("pLDBar").style.width=beRong(xong);
 }
 
 /* ---------- DETAIL ---------- */
