@@ -107,10 +107,19 @@
   .b.done{background:var(--green-bg);color:var(--green)}
   .b.nhacho{background:#E7E9FB;color:#3F4BB8}
   .b.ld{background:#DCF3E4;color:#166534}
-  /* nút mở bảng lắp đặt ngay trên thẻ danh sách */
-  .cardld{margin-top:8px;width:100%;border:1px solid var(--line);background:var(--bg);
+  .b.duyet{background:#DCF3E4;color:#166534}
+  .b.tuchoi{background:var(--red-bg);color:var(--red)}
+  .b.ktlai{background:var(--amber-bg);color:var(--amber)}
+  /* hàng nút trên thẻ: Duyệt co lại, nút lắp đặt giãn hết phần còn lại */
+  .cardbtns{display:flex;gap:6px;margin-top:8px}
+  .cardld{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);
     color:var(--ink-2);border-radius:9px;padding:8px 10px;font-weight:700;font-size:12.5px}
   .cardld.xong{background:#DCF3E4;border-color:#A7DEBB;color:#166534}
+  .cardduyet{flex:none;border:1px solid var(--line);background:var(--bg);color:var(--ink-2);
+    border-radius:9px;padding:8px 11px;font-weight:700;font-size:12.5px;white-space:nowrap}
+  .cardduyet.co{background:#DCF3E4;border-color:#A7DEBB;color:#166534}
+  .cardduyet.khong{background:var(--red-bg);border-color:#F0C2C2;color:var(--red)}
+  .cardduyet.lai{background:var(--amber-bg);border-color:#F2D9B0;color:var(--amber)}
   /* bảng nhập lắp đặt */
   .ldhead{margin:0;padding:0 0 12px;font-size:13px;color:var(--muted);top:44px}
   .ldgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -119,6 +128,9 @@
   .ldgrid label.w2{grid-column:1 / -1}
   .ldgrid .ctl{margin-top:4px}
   .ldlb{margin:14px 0 6px}
+  /* 3 kết quả duyệt xếp dọc: nhãn dài, xếp ngang là chữ bị bóp còn một nửa */
+  .segduyet{flex-direction:column}
+  .segduyet button{border-radius:9px}
   .ldthieu{margin:12px 0 4px;padding:10px 12px;border-radius:10px;font-size:13px;
     background:var(--amber-bg);border:1px solid #F2D9B0;color:#7A4A0A}
   .ldthieu.xong{background:var(--green-bg);border-color:#BFE3CB;color:#166534}
@@ -292,6 +304,8 @@
       <div class="seg seg-sm" id="segPrioLoc"></div>
       <label>Tình trạng lắp đặt</label>
       <div class="seg seg-sm" id="segLDLoc"></div>
+      <label>Kết quả duyệt</label>
+      <div class="seg seg-sm" id="segDuyetLoc"></div>
       <label>Ngày khảo sát (theo thời gian lưu)</label>
       <div class="ngay">
         <input class="ctl" id="locTu" type="date" aria-label="Từ ngày">
@@ -424,6 +438,7 @@
       <label>Hạ tầng<select id="selXLoai"></select></label>
       <label>Ưu tiên<select id="selXPrio"></select></label>
       <label>Lắp đặt<select id="selXLD"></select></label>
+      <label>Duyệt<select id="selXDuyet"></select></label>
       <label>Khảo sát từ ngày<input id="xTu" type="date"></label>
       <label>đến ngày<input id="xDen" type="date"></label>
     </div>
@@ -436,6 +451,28 @@
   <a class="btn btn-ghost" id="btnBaoCao" href="baocao.html" style="text-decoration:none;color:var(--ink-2)">📄 Xuất báo cáo khảo sát</a>
   <button class="btn btn-export" id="btnXlsx">📊 Tải dữ liệu Excel (.xlsx)</button>
   <button class="btn btn-ghost" id="btnCsv">Tải file CSV (dự phòng)</button>
+</div>
+
+<!-- ============ BẢNG DUYỆT PHƯƠNG ÁN ============ -->
+<div class="scrim" id="scrimDuyet"></div>
+<div class="sheet" id="sheetDuyet">
+  <div class="grab"></div>
+  <h3>Duyệt phương án</h3>
+  <p class="ldhead" id="duyetHead">—</p>
+
+  <label class="ldlb">Kết quả duyệt</label>
+  <div class="seg segduyet" id="segDuyet"></div>
+
+  <label class="ldlb" id="duyetLbLyDo">Lý do / ghi chú</label>
+  <textarea class="ctl" id="duyetLyDo" rows="3" placeholder="Nêu rõ lý do để người đọc biết phải làm gì tiếp…"></textarea>
+
+  <label class="ldlb">Người duyệt</label>
+  <input class="ctl" id="duyetBoi" placeholder="Họ tên người duyệt">
+
+  <div class="ldthieu" id="duyetNhac">—</div>
+  <button class="btn btn-export" id="btnLuuDuyet">Lưu kết quả duyệt</button>
+  <button class="btn btn-ghost" id="btnBoDuyet">Bỏ kết quả duyệt</button>
+  <button class="btn btn-ghost" id="btnDongDuyet">Đóng</button>
 </div>
 
 <!-- ============ BẢNG CẬP NHẬT LẮP ĐẶT ============ -->
@@ -532,6 +569,7 @@ let filterStatus = "all";
 let filterLoai = "Tất cả";           // Tất cả / Trụ dừng / Nhà chờ
 let filterPrio = "Tất cả";           // Tất cả / Ưu tiên 1 / Ưu tiên 2
 let filterLD   = "Tất cả";           // Tất cả / Đã lắp đặt / Chưa lắp đặt
+let filterDuyet= "Tất cả";           // Tất cả / Cho lắp / Không cho lắp / Kiểm tra lại / Chưa duyệt
 let filterTu = "", filterDen = "";   // ngày khảo sát, dạng yyyy-mm-dd
 let query = "";
 let current = null;
@@ -579,6 +617,25 @@ function thieuLapDat(stt){
   return t;
 }
 function daLapDat(stt){ return thieuLapDat(stt).length===0; }
+
+/* ---------- DUYỆT PHƯƠNG ÁN ----------
+   Khảo sát xong phải có người duyệt mới được lắp. Nhánh `duyet` tách hẳn khỏi
+   phần khảo sát và nhánh `ld`, giống cách hai giai đoạn kia không giẫm lên nhau:
+     duyet = { kq, lyDo, boi, luc }
+   Duyệt KHÔNG tính là đã khảo sát — `isDone` không đụng tới nhánh này. */
+const DUYET_KQ = ["Cho lắp","Không cho lắp","Kiểm tra lại"];
+// Hai kết quả này bắt buộc có lý do: đọc trên Sheet mà không biết vì sao bị
+// từ chối thì chẳng ai biết phải sửa gì.
+const DUYET_CAN_LYDO = ["Không cho lắp","Kiểm tra lại"];
+function duyet(stt){ const c=rec(stt); return (c && c.duyet) ? c.duyet : {}; }
+function kqDuyet(stt){ return String(duyet(stt).kq||""); }
+function daDuyet(stt){ return !!kqDuyet(stt); }
+// Màu của từng kết quả, khai một chỗ cho nhãn trên thẻ và nút trên thẻ dùng chung.
+const NHAN_DUYET = {
+  "Cho lắp":       { b:"duyet",  nut:"co" },
+  "Không cho lắp": { b:"tuchoi", nut:"khong" },
+  "Kiểm tra lại":  { b:"ktlai",  nut:"lai" }
+};
 function buildMapUrl(r){
   const c=rec(r.stt);
   if(c.lat&&c.lng) return "https://www.google.com/maps/search/?api=1&query="+c.lat+","+c.lng;
@@ -654,6 +711,7 @@ function veLocThem(){
   buildSegLoc("segLoai",["Tất cả","Trụ dừng","Nhà chờ"], ()=>filterLoai, v=>filterLoai=v);
   buildSegLoc("segPrioLoc",["Tất cả"].concat(PRIO),      ()=>filterPrio, v=>filterPrio=v);
   buildSegLoc("segLDLoc",["Tất cả","Đã lắp đặt","Chưa lắp đặt"], ()=>filterLD, v=>filterLD=v);
+  buildSegLoc("segDuyetLoc",["Tất cả"].concat(DUYET_KQ).concat(["Chưa duyệt"]), ()=>filterDuyet, v=>filterDuyet=v);
   document.getElementById("locTu").value=filterTu;
   document.getElementById("locDen").value=filterDen;
   const n=soLocDangDung(), nut=document.getElementById("btnLocThem");
@@ -662,7 +720,8 @@ function veLocThem(){
 }
 function xoaHetLoc(){
   filterStatus="all"; filterDistrict="Tất cả"; filterWard="Tất cả";
-  filterLoai="Tất cả"; filterPrio="Tất cả"; filterLD="Tất cả"; filterTu=""; filterDen=""; query="";
+  filterLoai="Tất cả"; filterPrio="Tất cả"; filterLD="Tất cả"; filterDuyet="Tất cả";
+  filterTu=""; filterDen=""; query="";
   document.getElementById("q").value="";
   capNhatLoc();
 }
@@ -687,6 +746,7 @@ function soLocDangDung(){
   if(filterLoai!=="Tất cả") n++;
   if(filterPrio!=="Tất cả") n++;
   if(filterLD!=="Tất cả") n++;
+  if(filterDuyet!=="Tất cả") n++;
   if(filterTu||filterDen) n++;
   return n;
 }
@@ -699,6 +759,10 @@ function matches(r){
   if(filterLoai!=="Tất cả" && (filterLoai==="Nhà chờ")!==laNhaCho(r)) return false;
   if(filterPrio!=="Tất cả" && rec(r.stt).prio!==filterPrio) return false;
   if(filterLD!=="Tất cả" && (filterLD==="Đã lắp đặt")!==daLapDat(r.stt)) return false;
+  if(filterDuyet!=="Tất cả"){
+    const kq=kqDuyet(r.stt);
+    if(filterDuyet==="Chưa duyệt" ? !!kq : kq!==filterDuyet) return false;
+  }
   if(filterTu||filterDen){
     // Lọc theo ngày thì điểm chưa có thời gian lưu đương nhiên không thuộc khoảng
     const d=ngayBanGhi(rec(r.stt).at);
@@ -723,6 +787,7 @@ function moTaLoc(){
   if(filterLoai!=="Tất cả") p.push(filterLoai.toLowerCase());
   if(filterPrio!=="Tất cả") p.push(filterPrio.toLowerCase());
   if(filterLD!=="Tất cả") p.push(filterLD.toLowerCase());
+  if(filterDuyet!=="Tất cả") p.push("duyệt: "+filterDuyet.toLowerCase());
   if(filterTu&&filterDen) p.push("khảo sát từ "+ngayVN(filterTu)+" đến "+ngayVN(filterDen));
   else if(filterTu) p.push("khảo sát từ "+ngayVN(filterTu));
   else if(filterDen) p.push("khảo sát đến "+ngayVN(filterDen));
@@ -760,6 +825,8 @@ function renderList(){
     if(laNhaCho(r)) badges.push('<span class="b nhacho">Nhà chờ</span>');
     const xongLD=daLapDat(r.stt);
     if(xongLD) badges.push('<span class="b ld">Đã lắp đặt</span>');
+    const kqD=kqDuyet(r.stt);
+    if(kqD) badges.push('<span class="b '+NHAN_DUYET[kqD].b+'">'+kqD+'</span>');
     card.innerHTML=
       '<div class="idx">'+r.stt+'</div>'+
       '<div class="cbody">'+
@@ -767,9 +834,12 @@ function renderList(){
         '<div class="caddr">'+esc(r.sonha||'—')+' · '+esc(r.phuong)+'</div>'+
         '<div class="ccode">'+(r.ma?esc(r.ma)+' · ':'')+esc(r.loai||'—')+'</div>'+
         '<div class="badges">'+badges.join('')+'</div>'+
-        '<button class="cardld'+(xongLD?' xong':'')+'" type="button">'+
-          (xongLD?'✓ Đã lắp đặt — xem / sửa':(coLapDat(r.stt)?'Tiếp tục cập nhật lắp đặt':'Cập nhật thông tin lắp đặt'))+
-        '</button>'+
+        '<div class="cardbtns">'+
+          '<button class="cardduyet'+(kqD?' '+NHAN_DUYET[kqD].nut:'')+'" type="button">⚖ '+(kqD||'Duyệt')+'</button>'+
+          '<button class="cardld'+(xongLD?' xong':'')+'" type="button">'+
+            (xongLD?'✓ Đã lắp đặt — xem / sửa':(coLapDat(r.stt)?'Tiếp tục cập nhật lắp đặt':'Cập nhật thông tin lắp đặt'))+
+          '</button>'+
+        '</div>'+
       '</div>'+
       '<button class="cardmap" aria-label="Mở Google Maps" title="Mở Google Maps">'+
         '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" stroke="#1E8E3E" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" stroke="#1E8E3E" stroke-width="2"/></svg>'+
@@ -779,6 +849,7 @@ function renderList(){
     card.querySelector(".cardmap").onclick=(e)=>{ e.stopPropagation(); window.open(buildMapUrl(r),"_blank"); };
     // stopPropagation: không thì bấm nút cũng rơi vào openDetail của cả thẻ
     card.querySelector(".cardld").onclick=(e)=>{ e.stopPropagation(); moLapDat(r.stt); };
+    card.querySelector(".cardduyet").onclick=(e)=>{ e.stopPropagation(); moDuyet(r.stt); };
     list.appendChild(card);
   });
   if(all.length>rows.length){
@@ -1146,7 +1217,7 @@ function uploadPhotosFor(stt, kho){
 function rowArray(r){
   const c=rec(r.stt);
   const ph=Array.isArray(c.photos)?c.photos:[];
-  const o=ld(r.stt), pl=photos(r.stt,"ld");
+  const o=ld(r.stt), pl=photos(r.stt,"ld"), dt=duyet(r.stt);
   return [r.stt,r.ma||"",r.diaban,r.ten,r.duong,r.sonha,r.phuong,r.loai,
     c.lat||"",c.lng||"",c.d1||"",c.d2||"",
     c.nhacho||"",c.vitri||"",c.loaitru||"",c.prio||"",
@@ -1156,7 +1227,9 @@ function rowArray(r){
     c.by||"",c.at||"",
     // --- giai đoạn 2: lắp đặt ---
     o.tru||"",o.truocSo||"",o.tu||"",o.can||"",o.pha||"",o.loai||"",o.ngay||"",
-    photoLink(pl[0]),photoLink(pl[1]),photoLink(pl[2]),o.ghichu||""];
+    photoLink(pl[0]),photoLink(pl[1]),photoLink(pl[2]),o.ghichu||"",
+    // --- duyệt phương án ---
+    dt.kq||"",dt.lyDo||"",dt.boi||"",dt.luc||""];
 }
 const HEADERS=["STT","Mã điểm dừng","Địa bàn","Tên vị trí","Tuyến đường","Số nhà/Vị trí","Phường/Xã","Hạ tầng",
   "Vĩ độ","Kinh độ",
@@ -1165,7 +1238,8 @@ const HEADERS=["STT","Mã điểm dừng","Địa bàn","Tên vị trí","Tuyế
   "Ưu tiên đề xuất","Bộ đèn pha đề xuất","Ghi chú thêm",
   "Ảnh 1","Ảnh 2","Ảnh 3","Người khảo sát","Thời gian lưu",
   "Trụ chiếu sáng số","Trước số nhà","Tủ điều khiển","Số lượng cần đèn","Số lượng đèn pha",
-  "Loại đèn","Ngày lắp đặt","Ảnh lắp đặt 1","Ảnh lắp đặt 2","Ảnh lắp đặt 3","Ghi chú lắp đặt"];
+  "Loại đèn","Ngày lắp đặt","Ảnh lắp đặt 1","Ảnh lắp đặt 2","Ảnh lắp đặt 3","Ghi chú lắp đặt",
+  "Kết quả duyệt","Lý do / ghi chú duyệt","Người duyệt","Thời gian duyệt"];
 /* Bố cục cột của chiều GHI LÊN (rowArray), để ngay cạnh HEADERS cho hai thứ không
    lệch nhau. Cột SERVER do Code.gs thêm, app không gửi lên.
 
@@ -1176,7 +1250,8 @@ const COL={STT:0,MA:1,DIABAN:2,TEN:3,DUONG:4,SONHA:5,PHUONG:6,HATANG:7,
   LAT:8,LNG:9,D1:10,D2:11,NHACHO:12,VITRI:13,LOAITRU:14,PRIO:15,DEN:16,NOTE:17,
   ANH1:18,ANH2:19,ANH3:20,BY:21,AT:22,
   LD_TRU:23,LD_TRUOCSO:24,LD_TU:25,LD_CAN:26,LD_PHA:27,LD_LOAI:28,LD_NGAY:29,
-  LD_ANH1:30,LD_ANH2:31,LD_ANH3:32,LD_GHICHU:33,SERVER:34};
+  LD_ANH1:30,LD_ANH2:31,LD_ANH3:32,LD_GHICHU:33,
+  DUYET:34,DUYET_LYDO:35,DUYET_BOI:36,DUYET_LUC:37,SERVER:38};
 function exportCsv(){
   // Tiêu đề cũng phải qua csvCell: "Loại trụ dừng, nhà chờ" có dấu phẩy, không bọc thì lệch cột.
   const ds=dsXuat();
@@ -1404,8 +1479,33 @@ function currentSyncUrl(){
 }
 /* Gửi dòng lên Sheets. Đọc JSON trả về để biết server có ghi được thật không —
    nếu chỉ dựa vào fetch thành công thì lỗi phía Apps Script vẫn báo "đã đồng bộ". */
+/* Chốt chặn: backend còn là bản cũ thì KHÔNG được ghi.
+   nangCapBang chạy trên Sheet, còn Deploy là việc khác — quên bấm "New version"
+   là backend cũ vẫn nhận POST, cắt payload theo số cột nó biết rồi ghi mốc thời
+   gian server đè vào một cột dữ liệu thật. Đã xảy ra ngày 19/8/2026: một dòng bị
+   ghi vào cột "Trụ chiếu sáng số". Hỏi ?action=status một lần mỗi phiên: bản mới
+   trả `cols`, bản cũ không có trường này.
+   Từ chối thì app giữ nhãn "Chưa đồng bộ" và gửi lại sau — không mất gì. */
+let ktBanBackend = null;                 // Promise, hỏi đúng 1 lần cho cả phiên
+function kiemTraBackend(){
+  if(ktBanBackend) return ktBanBackend;
+  ktBanBackend = fetch(currentSyncUrl()+"?action=status")
+    .then(r=>r.json())
+    .then(js=>{
+      const cols = js && Number(js.cols||0);
+      if(!cols || cols < HEADERS.length+1){
+        throw new Error("Google Apps Script đang chạy bản cũ ("+(cols?(cols+" cột"):"chưa rõ số cột")+
+          ", cần "+(HEADERS.length+1)+"). Vào Apps Script chạy nangCapBang rồi Deploy version mới. "+
+          "Dữ liệu vẫn giữ trên máy và sẽ tự gửi lại.");
+      }
+      return true;
+    })
+    .catch(err=>{ ktBanBackend=null; throw err; });   // hỏng mạng thì lần sau hỏi lại
+  return ktBanBackend;
+}
 function postRows(rows){
-  return fetch(currentSyncUrl(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(rows)})
+  return kiemTraBackend().then(()=>
+    fetch(currentSyncUrl(),{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(rows)})
     .then(res=>res.json().catch(()=>({ok:true})))
     .then(js=>{
       if(js && js.ok===false) throw new Error(js.error||"Máy chủ báo lỗi.");
@@ -1414,7 +1514,7 @@ function postRows(rows){
       rows.forEach(r=>{ const c=store[r[0]]; if(c) c.sync=t; });
       saveStore();
       return js;
-    });
+    }));
 }
 function unsynced(){ return RAW.filter(r=>isDone(r.stt)&&!rec(r.stt).sync); }
 
@@ -1444,6 +1544,14 @@ function doViTriCot(head){
 
 /* Đọc nhánh lắp đặt từ một dòng Sheet. Bảng chưa nâng cấp thì các cột này không có,
    `oCot` trả rỗng → nhánh `ld` rỗng, phần khảo sát vẫn đọc bình thường. */
+/* Đọc 4 cột duyệt theo TÊN tiêu đề. Bảng chưa nâng cấp thì oCot trả "" — nhánh
+   duyet rỗng, không lỗi, phần khảo sát vẫn đọc bình thường. */
+function docDuyet(v, oCot){
+  const kq=String(oCot(v,"Kết quả duyệt")||"").trim();
+  if(!kq) return null;
+  return { kq:kq, lyDo:String(oCot(v,"Lý do / ghi chú duyệt")||""),
+           boi:String(oCot(v,"Người duyệt")||""), luc:String(oCot(v,"Thời gian duyệt")||"") };
+}
 function docLD(v, oCot){
   const o={};
   LD_TRUONG.forEach(([k,ten])=>{ o[k]=String(oCot(v,ten)||""); });
@@ -1498,12 +1606,15 @@ function pullFromSheets(silent){
           by:String(oCot(v,"Người khảo sát")||""),
           at:String(oCot(v,"Thời gian lưu")||""),
           ld:docLD(v,oCot),
+          // duyet chỉ gắn vào khi Sheet có kết quả, để bản ghi không đổi thì
+          // phép so JSON.stringify bên dưới vẫn khớp và không báo nhầm "đã cập nhật".
           // Bảng chưa có cột thời gian server thì vẫn coi là đã lên Sheets
           photos:ph, sync:String(oCot(v,"Thời gian nhận (server)")||"")||"đã có trên Sheets"
         };
+        const dt=docDuyet(v,oCot); if(dt) next.duyet=dt;
         // Dòng rỗng trên Sheet thì bỏ qua, đừng tạo bản ghi rác
         const coLD = LD_TRUONG.some(([k])=>next.ld[k]) || next.ld.ghichu || next.ld.photos.length;
-        if(!(next.lat||next.d1||next.d2||next.nhacho||next.vitri||next.loaitru||next.prio||next.note||ph.length||coLD)) return;
+        if(!(next.lat||next.d1||next.d2||next.nhacho||next.vitri||next.loaitru||next.prio||next.note||ph.length||coLD||next.duyet)) return;
         if(JSON.stringify(cur)===JSON.stringify(next)) return;   // không đổi thì thôi
         store[stt]=next; n++;
       });
@@ -1611,6 +1722,7 @@ function veLocXuat(){
   veSelect("selXLoai", ["Tất cả","Trụ dừng","Nhà chờ"].map(x=>doi(x,x)), filterLoai, v=>filterLoai=v);
   veSelect("selXPrio", ["Tất cả"].concat(PRIO).map(x=>doi(x,x)), filterPrio, v=>filterPrio=v);
   veSelect("selXLD", ["Tất cả","Đã lắp đặt","Chưa lắp đặt"].map(x=>doi(x,x)), filterLD, v=>filterLD=v);
+  veSelect("selXDuyet", ["Tất cả"].concat(DUYET_KQ).concat(["Chưa duyệt"]).map(x=>doi(x,x)), filterDuyet, v=>filterDuyet=v);
   document.getElementById("xTu").value=filterTu;
   document.getElementById("xDen").value=filterDen;
 
@@ -1632,6 +1744,89 @@ function pad4(n){ return String(n).padStart(4,"0"); }
 let toastT;
 function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show");
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+/* ---------- BẢNG DUYỆT PHƯƠNG ÁN ---------- */
+let currentDuyet = null;
+function moDuyet(stt){
+  currentDuyet=stt;
+  const r=RAW.find(x=>x.stt===stt)||{}, d=duyet(stt);
+  document.getElementById("duyetHead").textContent=
+    "STT "+stt+(r.ma?" · "+r.ma:"")+" · "+(r.duong||"")+
+    (r.sonha?(" · "+r.sonha):"")+" · "+(r.phuong||"");
+  veSegDuyet(d.kq||"");
+  document.getElementById("duyetLyDo").value=d.lyDo||"";
+  // Người duyệt nhớ ở key RIÊNG: người duyệt thường không phải người đi khảo sát,
+  // dùng chung lavipco_ks_by là hai tên đè lẫn nhau.
+  document.getElementById("duyetBoi").value=d.boi||localStorage.getItem("lavipco_ks_duyet_by")||"";
+  veNhacDuyet();
+  document.getElementById("scrimDuyet").classList.add("show");
+  document.getElementById("sheetDuyet").classList.add("show");
+}
+function veSegDuyet(chon){
+  const seg=document.getElementById("segDuyet"); seg.innerHTML="";
+  DUYET_KQ.forEach(k=>{
+    const b=document.createElement("button"); b.type="button"; b.dataset.v=k; b.textContent=k;
+    b.className = (chon===k) ? "on" : "";
+    b.onclick=()=>{ veSegDuyet(k); veNhacDuyet(); };
+    seg.appendChild(b);
+  });
+}
+function kqDangChon(){
+  const b=document.getElementById("segDuyet").querySelector("button.on");
+  return b ? b.dataset.v : "";
+}
+function veNhacDuyet(){
+  const kq=kqDangChon(), lyDo=document.getElementById("duyetLyDo").value.trim();
+  const canLyDo = DUYET_CAN_LYDO.indexOf(kq)>=0;
+  document.getElementById("duyetLbLyDo").textContent =
+    canLyDo ? "Lý do (bắt buộc)" : "Lý do / ghi chú";
+  const o=document.getElementById("duyetNhac");
+  let t="", xong=false;
+  if(!kq) t="Chọn một trong ba kết quả ở trên.";
+  else if(canLyDo && !lyDo) t="Còn thiếu: lý do — “"+kq+"” thì phải nêu rõ vì sao.";
+  else { t="Đủ thông tin, bấm Lưu."; xong=true; }
+  o.textContent=t; o.classList.toggle("xong",xong);
+  return xong;
+}
+function luuDuyet(){
+  if(!veNhacDuyet()) return;                       // thiếu thì không lưu, dòng nhắc đã nói rõ
+  const stt=currentDuyet;
+  const boi=document.getElementById("duyetBoi").value.trim();
+  if(boi) localStorage.setItem("lavipco_ks_duyet_by",boi);
+  if(!store[stt]) store[stt]={};
+  store[stt].duyet={ kq:kqDangChon(), lyDo:document.getElementById("duyetLyDo").value.trim(),
+                     boi:boi, luc:new Date().toLocaleString("vi-VN") };
+  delete store[stt].sync;                          // nội dung dòng đổi → phải gửi lại
+  saveStore();
+  guiSauKhiDuyet(stt, "Đã duyệt: "+store[stt].duyet.kq);
+}
+function boDuyet(){
+  const stt=currentDuyet;
+  if(!daDuyet(stt)){ dongDuyet(); return; }
+  if(!confirm("Bỏ kết quả duyệt của điểm "+stt+"?")) return;
+  delete store[stt].duyet;
+  delete store[stt].sync;
+  saveStore();
+  guiSauKhiDuyet(stt, "Đã bỏ kết quả duyệt điểm "+stt);
+}
+/* Gửi lại đúng dòng đó lên Sheets, y như luuLapDat — không đụng gì tới ảnh. */
+function guiSauKhiDuyet(stt, loi){
+  dongDuyet(); renderList(); updateExpSummary();
+  const r=RAW.find(x=>x.stt===stt);
+  if(navigator.onLine){
+    toast(loi+" · đang gửi lên Google…");
+    postRows([rowArray(r)])
+      .then(()=>{ renderList(); toast("Điểm "+stt+" đã lên Google Sheets."); })
+      .catch(()=>{ toast("Đã lưu trên máy. Chưa gửi được lên Sheets — sẽ tự gửi lại khi có mạng."); });
+  } else {
+    toast(loi+" (offline). Sẽ tự gửi khi có mạng.");
+  }
+}
+function dongDuyet(){
+  document.getElementById("scrimDuyet").classList.remove("show");
+  document.getElementById("sheetDuyet").classList.remove("show");
+  currentDuyet=null;
+}
+
 /* ---------- BẢNG CẬP NHẬT LẮP ĐẶT ---------- */
 let currentLD = null;
 const LD_O = { tru:"ldTru", truocSo:"ldTruocSo", tu:"ldTu", can:"ldCan",
@@ -1718,6 +1913,12 @@ document.getElementById("btnSavePhotoLD").onclick=()=>saveAllPhotosToDevice("ld"
 document.getElementById("btnLuuLD").onclick=luuLapDat;
 document.getElementById("btnDongLD").onclick=dongLapDat;
 document.getElementById("scrimLD").onclick=dongLapDat;
+document.getElementById("btnLuuDuyet").onclick=luuDuyet;
+document.getElementById("btnBoDuyet").onclick=boDuyet;
+document.getElementById("btnDongDuyet").onclick=dongDuyet;
+document.getElementById("scrimDuyet").onclick=dongDuyet;
+// Gõ lý do tới đâu thì dòng nhắc "còn thiếu" cập nhật tới đó
+document.getElementById("duyetLyDo").oninput=veNhacDuyet;
 Object.keys(LD_O).forEach(k=>document.getElementById(LD_O[k]).addEventListener("input",veThieuLD));
 document.getElementById("btnReset").onclick=()=>{ if(confirm("Xóa dữ liệu khảo sát của điểm này?")){ delete store[current]; saveStore(); toast("Đã xóa điểm "+current); closeDetail(); } };
 document.getElementById("fabExport").onclick=openSheet;

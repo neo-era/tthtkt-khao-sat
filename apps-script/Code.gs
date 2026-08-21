@@ -28,7 +28,7 @@ var SHEET_NAME = 'KhaoSat';
 // Thư mục Google Drive chứa ảnh hiện trường (tự tạo trong Drive của tài khoản chạy script).
 var PHOTO_FOLDER = 'Anh khao sat chieu sang - Tram dung xe buyt';
 
-// 34 cột app gửi lên + 1 cột thời gian server nhận = 35 cột.
+// 38 cột app gửi lên + 1 cột thời gian server nhận = 39 cột.
 var HEADERS = [
   'STT', 'Mã điểm dừng', 'Địa bàn', 'Tên vị trí', 'Tuyến đường', 'Số nhà/Vị trí',
   'Phường/Xã', 'Hạ tầng', 'Vĩ độ', 'Kinh độ',
@@ -40,15 +40,17 @@ var HEADERS = [
   'Trụ chiếu sáng số', 'Trước số nhà', 'Tủ điều khiển', 'Số lượng cần đèn',
   'Số lượng đèn pha', 'Loại đèn', 'Ngày lắp đặt',
   'Ảnh lắp đặt 1', 'Ảnh lắp đặt 2', 'Ảnh lắp đặt 3', 'Ghi chú lắp đặt',
+  'Kết quả duyệt', 'Lý do / ghi chú duyệt', 'Người duyệt', 'Thời gian duyệt',
   'Thời gian nhận (server)'
 ];
-var NCOLS = HEADERS.length;        // 35
-var APP_COLS = 34;                 // số cột app gửi
+var NCOLS = HEADERS.length;        // 39
+var APP_COLS = 38;                 // số cột app gửi
 
 // Độ rộng cột (pixel), khớp 1-1 với HEADERS. Thêm/bớt cột thì sửa cả hai.
 var COL_WIDTHS = [45, 90, 95, 200, 130, 130, 110, 120, 95, 95, 110, 110, 150, 140, 120, 90, 130, 200,
                   190, 190, 190, 120, 130,
                   110, 170, 100, 95, 95, 190, 100, 190, 190, 190, 170,
+                  110, 220, 130, 130,
                   130];
 var TZ = 'Asia/Ho_Chi_Minh';
 

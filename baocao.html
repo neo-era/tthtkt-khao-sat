@@ -182,6 +182,11 @@ function daLapDat(c){
   return LD_TRUONG.every(([k])=>String(o[k]||"").trim()) && anhLD(c).length>0;
 }
 
+/* Duyệt phương án. Bản sao rút gọn của quy tắc trong index.html. */
+const DUYET_KQ=["Cho lắp","Không cho lắp","Kiểm tra lại"];
+function duyetCua(c){ return (c && c.duyet) ? c.duyet : {}; }
+function kqDuyet(c){ return String(duyetCua(c).kq||""); }
+
 function loadRaw(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_raw_v1"))||[]; }catch(e){ return []; } }
 function loadStore(){ try{ return JSON.parse(localStorage.getItem("lavipco_ks_data_v3"))||{}; }catch(e){ return {}; } }
 function esc(s){ return (s==null?"":""+s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
@@ -377,6 +382,19 @@ function render(){
   }).join("");
   if(!dsLD.length) ldRows='<tr><td colspan="13" class="num">Chưa có vị trí nào được cập nhật thông tin lắp đặt.</td></tr>';
 
+  // Kết quả duyệt phương án — chỉ liệt kê vị trí đã có kết quả
+  const demDuyet={}; DUYET_KQ.forEach(k=>demDuyet[k]=0);
+  const dsDuyet=RAW.filter(r=>{ const k=kqDuyet(rec(STORE,r.stt)); if(k && k in demDuyet) demDuyet[k]++; return !!k; });
+  let duyetRows=dsDuyet.map((r,i)=>{
+    const d=duyetCua(rec(STORE,r.stt));
+    return '<tr><td class="num">'+(i+1)+'</td><td class="num">'+esc(r.stt)+'</td>'+
+      '<td>'+esc(r.duong||"—")+(r.sonha?(' – '+esc(r.sonha)):"")+'<br><i>'+esc(r.phuong||"")+'</i></td>'+
+      '<td>'+esc(d.kq||"—")+'</td><td>'+esc(d.lyDo||"")+'</td>'+
+      '<td>'+esc(d.boi||"—")+'</td><td class="num">'+esc(d.luc||"—")+'</td></tr>';
+  }).join("");
+  if(!dsDuyet.length) duyetRows='<tr><td colspan="7" class="num">Chưa có vị trí nào được duyệt.</td></tr>';
+  const chuaDuyet=total-dsDuyet.length;
+
   const PEND_MAX=500;
   let pendRows="";
   pending.slice(0,PEND_MAX).forEach((r,i)=>{ pendRows+='<tr><td class="num">'+(i+1)+'</td><td>'+esc(r.diaban)+'</td><td>'+
@@ -403,6 +421,7 @@ function render(){
       <div class="box"><b>${done.length}</b><span>Đã khảo sát (${total?Math.round(done.length/total*100):0}%)</span></div>
       <div class="box"><b>${pending.length}</b><span>Chưa khảo sát</span></div>
       <div class="box"><b>${hasGps}</b><span>Có tọa độ GPS</span></div>
+      <div class="box"><b>${demDuyet["Cho lắp"]}</b><span>Đã duyệt cho lắp</span></div>
     </div>
     <h3>Phân bố theo địa bàn – phường/xã</h3>
     <table>
@@ -500,20 +519,29 @@ function render(){
 
     </div>
 
-    <h2 data-kho="doc">VI. Phụ lục: Vị trí chưa khảo sát</h2>
+    <h2 data-kho="doc">VI. Kết quả duyệt phương án</h2>
+    <p><b>Cho lắp ${demDuyet["Cho lắp"]}</b> · Không cho lắp ${demDuyet["Không cho lắp"]}
+    · Kiểm tra lại ${demDuyet["Kiểm tra lại"]} · Chưa duyệt ${chuaDuyet} (trên tổng ${total} vị trí).</p>
+    <table>
+      <colgroup><col style="width:5%"><col style="width:7%"><col style="width:26%"><col style="width:13%"><col style="width:24%"><col style="width:13%"><col style="width:12%"></colgroup>
+      <tr><th>TT</th><th>STT</th><th>Tuyến đường / Vị trí</th><th>Kết quả</th><th>Lý do / ghi chú</th><th>Người duyệt</th><th>Thời gian</th></tr>
+      ${duyetRows}
+    </table>
+
+    <h2>VII. Phụ lục: Vị trí chưa khảo sát</h2>
     <table>
       <tr><th>TT</th><th>Khu vực</th><th>Phường/Xã</th><th>Tuyến đường</th><th>Số nhà/Vị trí</th></tr>
       ${pendRows}
     </table>
 
     <div id="anh">
-      <h2>VII. Phụ lục ảnh hiện trường</h2>
+      <h2>VIII. Phụ lục ảnh hiện trường</h2>
       <p><i>${nAnh} ảnh tại ${nViTri} vị trí. Mỗi ảnh đã được đóng dấu địa chỉ, tọa độ GPS
       và thời gian chụp ngay tại thời điểm khảo sát.</i></p>
       ${anh}
     </div>
 
-    <h2>VIII. Kết luận &amp; kiến nghị</h2>
+    <h2>IX. Kết luận &amp; kiến nghị</h2>
     <textarea id="ketluan">Qua khảo sát ${done.length}/${total} vị trí, đơn vị kiến nghị bổ sung bộ đèn LED chiếu sáng tại các trụ dừng / nhà chờ xe buýt còn thiếu chiếu sáng, thực hiện trước các vị trí thuộc Ưu tiên 1. Kính trình cấp có thẩm quyền xem xét, chấp thuận chủ trương và bố trí kinh phí thực hiện.</textarea>
 
     <div class="sign">

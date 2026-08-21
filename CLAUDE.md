@@ -35,11 +35,12 @@ Luồng: app (điện thoại) → lưu localStorage → khi có mạng POST JSO
 - **GPS & camera chỉ chạy qua `https://`** (GitHub Pages). Mở file trực tiếp từ máy thì hai tính năng bị chặn — đây là hành vi của trình duyệt, không phải bug.
 - **Upsert theo STT**: app đồng bộ lại TOÀN BỘ điểm "đã khảo sát" mỗi lần. Backend phải cập nhật đè theo cột STT, không được `appendRow` mù → sẽ nhân đôi dữ liệu. Logic này nằm ở `doPost` + `buildSttIndex_` trong `Code.gs`.
 - **Tiếng Việt có dấu**: giữ UTF-8. CSV export phải có BOM `\ufeff` để Excel đọc đúng dấu.
-- **Số cột phải khớp**: app gửi đúng **34 cột** theo `rowArray()`; backend thêm cột 35 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
+- **Số cột phải khớp**: app gửi đúng **38 cột** theo `rowArray()`; backend thêm cột 39 (thời gian server). Nếu đổi schema phải sửa ĐỒNG THỜI `rowArray` + `HEADERS` + **`COL`** trong `index.html` và `HEADERS`/`APP_COLS`/`NCOLS`/`widths` trong `Code.gs`.
 - **Chiều ĐỌC VỀ dò cột theo TÊN tiêu đề, tuyệt đối không theo vị trí** (`doViTriCot` + `oCot` trong `pullFromSheets`). Đọc theo vị trí đã gây sự cố thật ngày 19/8/2026: Sheet còn bố cục cũ trong khi app đã lên bố cục mới, mọi trường lệch một nấc — vĩ độ nhận kinh độ, người khảo sát nhận mốc thời gian server — và **không có lỗi nào báo**, dữ liệu hiện trường cứ thế bị ghi đè sai. Thiếu cột trong `COT_BAT_BUOC` thì **không trộn gì cả**, báo lỗi kèm tên cột thiếu (báo cả khi chạy ngầm, vì im lặng là cán bộ tưởng dữ liệu đã khớp).
 - Đánh đổi đã chọn: đổi *chữ* tiêu đề trên Sheet giờ làm app báo lỗi thay vì chạy sai. Báo lỗi thì sửa được, ghi nhầm trường thì không ai biết mà sửa.
 - `COL` chỉ còn mô tả bố cục **chiều ghi lên** (`rowArray`), giữ cạnh `HEADERS` cho hai thứ không lệch nhau.
 - **`doPost` từ chối ghi khi bảng chưa nâng cấp** (`cotConThieu_`): ghi theo vị trí vào bảng cũ chính là thứ đã đè mất một dòng khảo sát thật. Từ chối thì app giữ nhãn *Chưa đồng bộ* và gửi lại sau, không mất gì.
+- **App cũng tự chặn chiều ngược lại**: `kiemTraBackend()` hỏi `?action=status` **một lần mỗi phiên** trước khi POST; `cols` nhỏ hơn số cột app cần — hoặc không có `cols` (bản quá cũ) — thì **không gửi gì cả**. Vì `nangCapBang` chạy trên Sheet còn Deploy là việc khác: quên bấm *New version* là backend cũ cắt payload theo số cột nó biết rồi ghi mốc thời gian server đè vào một cột dữ liệu thật (đã xảy ra 19/8/2026). Từ chối thì bản ghi giữ nhãn *Chưa đồng bộ* và gửi lại sau.
 - **Đổi bố cục cột trên Sheet đang có dữ liệu thì dùng hàm nâng cấp, KHÔNG chạy `setupSheet`** — hàm đó `sheet.clear()`, mất sạch dữ liệu đã đồng bộ. Dùng `nangCapBang()` trong `Code.gs`: nó so tiêu đề hiện có với `HEADERS`, thiếu cột nào thì `insertColumnBefore` vào đúng chỗ — chạy được từ bất kỳ phiên bản cũ nào và chạy lại nhiều lần cũng không sao.
 - **Cột thừa sau cột 35 là rác của lần đổi bố cục**: `nangCapBang` chèn cột vào giữa nên ô của dòng từng bị lệch bị đẩy ra ngoài vùng có tiêu đề (cột 36+) — app không thấy nhưng Sheet vẫn giữ. Dọn bằng `donDepCotThua()` trong `Code.gs`; hàm ghi ra Nhật ký từng ô có dữ liệu trước khi xoá.
 - **`?action=status` trả `cols` (số cột bản Code.gs đang chạy) và `colsSheet` (số cột bảng thật)** — cách duy nhất nhìn từ bên ngoài để biết bản deploy có phải bản mới không. Deploy mà quên bấm *New version* thì URL vẫn chạy code cũ, và chuyện đó đã xảy ra: một dòng đồng bộ lúc 19/8/2026 16:28 bị backend cũ ghi mốc thời gian server vào cột 24 (`Trụ chiếu sáng số`) vì bản cũ chỉ biết 24 cột.
@@ -79,6 +80,18 @@ c.ld = { tru, truocSo, tu, can, pha, loai, ngay, ghichu, photos:[{d,id,url}] }
 - `coLapDat(stt)` = có bất kỳ trường hoặc ảnh nào — dùng để lọc dòng đưa vào bảng nghiệm thu (kể cả đang cập nhật dở).
 - **Hàng chip trạng thái là một nhóm loại trừ nhau nhưng bắc qua HAI biến**: 3 chip đầu đặt `filterStatus`, 2 chip *Đã lắp đặt* / *Chưa lắp đặt* đặt `filterLD` — chính biến của ô *Tình trạng lắp đặt* trong **Lọc thêm**, không đẻ thêm biến thứ ba. Hệ quả bắt buộc: mọi chỗ đổi `filterLD` (chip, Lọc thêm, bảng Xuất dữ liệu) đều phải đi qua **`capNhatLoc()`** để hàng chip vẽ lại, không thì chip sáng một đằng dữ liệu một nẻo. Chip sáng khi khớp **cả hai** vế; tổ hợp ghép tay từ Lọc thêm (vd *đã khảo sát* + *chưa lắp đặt*) thì không chip nào sáng — đúng thực tế còn hơn sáng nửa vời rồi bấm vào lại mất nốt vế kia.
 - **Hai thanh tiến độ dùng chung mẫu số `RAW.length`** (không phải "trên số điểm đã khảo sát") để so được với nhau; thanh lắp đặt đếm theo `daLapDat`, màu hổ phách cho khác dải xanh lá của thanh khảo sát. Đếm được vài điểm trên 661 thì phần trăm làm tròn ra 0 và thanh trống trơn, nhìn như hỏng — nên có điểm nào là để lại vạch mỏng tối thiểu 1,5%; con số bên phải mới là căn cứ.
+
+### Giai đoạn 3 — duyệt phương án (nhánh `duyet`)
+Khảo sát xong phải có người duyệt mới được lắp. Nhánh riêng, tách khỏi `ld`:
+```js
+c.duyet = { kq, lyDo, boi, luc }
+```
+- `kq` ∈ {Cho lắp, Không cho lắp, Kiểm tra lại}; rỗng = chưa duyệt. `daDuyet()` / `kqDuyet()` là hai hàm tra, đừng rải `c.duyet && c.duyet.kq` khắp nơi.
+- **Lý do bắt buộc** với *Không cho lắp* và *Kiểm tra lại* (`DUYET_CAN_LYDO`) — đọc trên Sheet mà không biết vì sao bị từ chối thì chẳng ai biết phải sửa gì. *Cho lắp* thì lý do là ghi chú tuỳ ý.
+- `boi` nhớ ở key **riêng** `lavipco_ks_duyet_by`, **không dùng chung `lavipco_ks_by`**: người duyệt thường không phải người đi khảo sát, dùng chung là hai tên đè lẫn nhau.
+- **Duyệt không tính là đã khảo sát** — `isDone` không đụng tới nhánh này. Nhưng phép "dòng rỗng thì bỏ qua" trong `pullFromSheets` phải kể cả `duyet`, không thì dòng chỉ có kết quả duyệt bị bỏ.
+- Nút **⚖ Duyệt** nằm trên thẻ danh sách, **hiện cho mọi điểm** (kể cả chưa khảo sát), cạnh nút lắp đặt; nhãn trên thẻ đổi màu theo kết quả (`NHAN_DUYET`).
+- Lọc: `filterDuyet` (Tất cả / 3 kết quả / Chưa duyệt) trong **Lọc thêm** và bảng **Xuất dữ liệu** — không thêm chip, hàng chip đã 5 cái.
 
 **Hai kho ảnh trên cùng một điểm** (`KHO` trong `index.html`): `'ks'` = ảnh khảo sát (`c.photos`), `'ld'` = ảnh lắp đặt (`c.ld.photos`). Dùng chung một đường ống (`onPhoto`, `renderPhotos`, `uploadPhotosFor`, `stampLines`) qua tham số `kho`, đừng viết bộ thứ hai.
 - **Tiền tố tên file trên Drive bắt buộc khác nhau** (`KS_` / `LD_`, gửi qua `pre` trong payload): `savePhoto_` đặt tên theo STT + ô ảnh, thiếu tiền tố là ảnh lắp đặt **ghi đè ảnh khảo sát**. Bản app cũ không gửi `pre` nên backend mặc định `'KS'`.
