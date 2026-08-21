@@ -64,6 +64,7 @@ Key = STT (số). Value:
   - `id` / `url` = ID và link file trên Google Drive sau khi tải lên. Ảnh đã lên Drive hiển thị lại qua `https://drive.google.com/thumbnail?id=<id>&sz=w400` (cần mạng).
   - Ảnh được vẽ lại bằng canvas: thu nhỏ rồi in đè **địa chỉ · tọa độ (kèm ±độ chính xác) · thời gian chụp** ở dải dưới (`drawStamp` / `stampLines`). Tọa độ lấy từ ô Vĩ độ/Kinh độ đang nhập — chưa bấm Định vị thì đóng dấu "chưa lấy được".
   - Mỗi ảnh vẫn tự tải 1 bản về máy ngay khi chụp (đó là bản sao lưu thật, Drive chỉ là nơi chia sẻ).
+  - **Chạm vào ô ảnh đã có ảnh là XEM cỡ lớn** (`moXemAnh`, khung `#xemAnh`), không phải mở máy ảnh chụp đè như trước — chụp đè giờ nằm ở nút *Chụp lại* trong khung xem. Ô trống thì vẫn mở thẳng máy ảnh. Khung xem đặt `z-index:90` vì phải nằm trên bảng lắp đặt (71), và lấy `p.d` nếu ảnh còn trên máy, ngược lại xin Drive bản `sz=w1600` — bản `w400` của ô thu nhỏ phóng to ra không đọc được số nhà.
 - `sync` = thời điểm Apps Script **xác nhận đã ghi** dòng này vào Sheet. Rỗng = chưa lên Sheets → thẻ hiện nhãn vàng "Chưa đồng bộ", `unsynced()` gom lại để gửi tiếp. `saveDetail` xóa `sync` mỗi lần lưu vì nội dung đã đổi.
 - Một điểm coi là "đã khảo sát" (`isDone`) khi có một trong: lat, d1, d2, nhacho, vitri, loaitru, prio, note, photos.
 
